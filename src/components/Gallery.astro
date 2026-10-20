@@ -81,6 +81,9 @@ const items = pieces.map((piece) => {
       <path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
     </svg>
   </button>
+  <p class="viewer-hint" hidden data-hint>
+    Pinch to zoom{pieces.length > 1 && <span class="viewer-hint-more"> · Swipe for more</span>}
+  </p>
   <a class="viewer-project" href="/projects" hidden data-project>
     <span>View project: <span data-project-title></span></span>
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -339,6 +342,32 @@ const items = pieces.map((piece) => {
     pointer-events: none;
   }
 
+  /* Phones: a quiet line under the piece explaining the gestures */
+  .viewer-hint {
+    position: absolute;
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 0 1rem;
+    text-align: center;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--cocoa);
+    opacity: 0.75;
+    pointer-events: none;
+    transition: opacity 200ms;
+  }
+
+  .viewer-hint[hidden] {
+    display: none;
+  }
+
+  .viewer:has(.is-zoomed) .viewer-hint {
+    opacity: 0;
+  }
+
   :global(html.viewer-open) {
     overflow: hidden;
   }
@@ -423,6 +452,9 @@ const items = pieces.map((piece) => {
     const nextButton = dialog.querySelector<HTMLButtonElement>('[data-next]')!
     prevButton.hidden = nextButton.hidden = pieces.length < 2
     const projectLink = dialog.querySelector<HTMLAnchorElement>('[data-project]')!
+    const hint = dialog.querySelector<HTMLElement>('[data-hint]')!
+    const touchScreen = matchMedia('(pointer: coarse)').matches
+    const HINT_SPACE = 40
 
     // Only pieces shown outside their project carry one
     function showProject(piece: HTMLElement) {
@@ -444,10 +476,17 @@ const items = pieces.map((piece) => {
     const natural = (piece: HTMLElement) => ({w: Number(piece.dataset.width), h: Number(piece.dataset.height)})
     const sized = (url: string, w: number) => `${url}?w=${w}&q=92&auto=format`
 
+    // Room kept clear at the bottom for the phone hint and the project link, so neither covers the piece
+    function reserved() {
+      const hintSpace = hint.hidden ? 0 : HINT_SPACE
+      const linkSpace = projectLink.hidden ? 0 : projectLink.offsetHeight + 16
+      return hintSpace + linkSpace
+    }
+
     function fit() {
       const {w, h} = natural(pieces[index])
       const pad = Math.max(16, Math.min(56, Math.min(innerWidth, innerHeight) * 0.05))
-      const scale = Math.min(1, (innerWidth - 2 * pad) / w, (innerHeight - 2 * pad) / h)
+      const scale = Math.min(1, (innerWidth - 2 * pad) / w, (innerHeight - 2 * pad - reserved()) / h)
       return {w: Math.round(w * scale), h: Math.round(h * scale)}
     }
 
@@ -475,6 +514,7 @@ const items = pieces.map((piece) => {
       const piece = pieces[index]
       if (zoomed && media instanceof HTMLImageElement) {
         const {w, h} = natural(piece)
+        stage.style.paddingBottom = ''
         media.style.width = `${w * scale}px`
         media.style.height = `${h * scale}px`
         clampPan()
@@ -485,6 +525,10 @@ const items = pieces.map((piece) => {
       media.style.width = `${size.w}px`
       media.style.height = `${size.h}px`
       media.style.transform = ''
+      // Centre the piece in the space above the reserved strip, with the hint just under it
+      const space = reserved()
+      stage.style.paddingBottom = `${space}px`
+      if (!hint.hidden) hint.style.top = `${(innerHeight - space) / 2 + size.h / 2 + 14}px`
       if (media instanceof HTMLImageElement) {
         media.classList.toggle('is-zoomable', natural(piece).w > size.w * 1.4)
         sharpen(media, size.w)
@@ -509,6 +553,7 @@ const items = pieces.map((piece) => {
       loadedWidth = 0
       stage.classList.remove('is-zoomed')
       stage.replaceChildren()
+      hint.hidden = !touchScreen || Boolean(piece.dataset.video)
       showProject(piece)
 
       if (piece.dataset.video) {
