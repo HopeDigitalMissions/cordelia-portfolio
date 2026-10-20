@@ -25,6 +25,7 @@ interface LandingPage {
   eyebrow?: string
   name?: string
   slideSeconds?: number
+  panSpeed?: number
   transition?: 'fade' | 'dip'
   slides?: Artwork[]
   extras?: Artwork[]
@@ -35,7 +36,7 @@ const artworkFields = `_id, title, year, image, landingFit, landingMotion, landi
 
 const page = await sanity.fetch<LandingPage | null>(`
   *[_id == "landingPage"][0]{
-    eyebrow, name, slideSeconds, transition, socials,
+    eyebrow, name, slideSeconds, panSpeed, transition, socials,
     "slides": slides[@->showOnLanding == true && defined(@->image.asset)]->{${artworkFields}},
     "extras": *[_type == "artwork" && showOnLanding == true && defined(image.asset)
       && !(_id in ^.slides[]._ref) && !(_id in path("drafts.**"))] | order(year desc, _createdAt desc){${artworkFields}}
@@ -97,6 +98,7 @@ const eyebrow = page?.eyebrow ?? 'Illustrator & Concept Artist'
     name={name}
     eyebrow={eyebrow}
     seconds={page?.slideSeconds ?? 5}
+    panSpeed={page?.panSpeed ?? 28}
     transition={page?.transition ?? 'fade'}
     socials={page?.socials ?? {}}
   />

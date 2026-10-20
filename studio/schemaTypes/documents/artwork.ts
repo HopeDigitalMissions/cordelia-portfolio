@@ -112,7 +112,7 @@ export const artwork = defineType({
       title: 'Pan path',
       type: 'object',
       description:
-        'Starts at the hotspot and glides toward the point you click, on any screen where the piece is cropped. To pan down a tall piece on computers too, set Landing page fit to Always fill the screen.',
+        'Starts at the hotspot and glides to the point you click, at the Pan speed set on the Landing page. The piece stays on screen until it arrives. Works on any screen where the piece is cropped; to pan down a tall piece on computers too, set Landing page fit to Always fill the screen.',
       fields: [
         defineField({name: 'x', type: 'number'}),
         defineField({name: 'y', type: 'number'}),

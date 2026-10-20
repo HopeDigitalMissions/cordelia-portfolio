@@ -53,8 +53,28 @@ export const landingPage = defineType({
       name: 'slideSeconds',
       title: 'Seconds per piece',
       type: 'number',
+      description: 'Pieces with a pan path stay up longer if their path needs it.',
       initialValue: 5,
       validation: (rule) => rule.required().min(2).max(30),
+    }),
+    defineField({
+      name: 'panSpeed',
+      title: 'Pan speed',
+      type: 'number',
+      description:
+        'How fast every moving piece drifts. A piece with a pan path stays on screen until its path is finished, so longer paths show longer rather than faster.',
+      initialValue: 28,
+      options: {
+        layout: 'radio',
+        direction: 'horizontal',
+        list: [
+          {title: 'Very slow', value: 15},
+          {title: 'Slow', value: 22},
+          {title: 'Gentle', value: 28},
+          {title: 'Medium', value: 40},
+          {title: 'Quick', value: 60},
+        ],
+      },
     }),
     defineField({
       name: 'transition',

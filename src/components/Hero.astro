@@ -25,14 +25,15 @@ interface Props {
   name: string
   eyebrow: string
   seconds: number
+  panSpeed: number
   transition: 'fade' | 'dip'
   socials: Socials
 }
 
-const {slides, name, eyebrow, seconds, transition, socials} = Astro.props
+const {slides, name, eyebrow, seconds, panSpeed, transition, socials} = Astro.props
 ---
 
-<main class="hero" data-seconds={seconds} data-transition={transition}>
+<main class="hero" data-seconds={seconds} data-pan-speed={panSpeed} data-transition={transition}>
   <div class="stage">
     {
       slides.map((slide, i) => (
@@ -331,10 +332,10 @@ const {slides, name, eyebrow, seconds, transition, socials} = Astro.props
   // less than this share of it visible. Everything else fills the screen.
   const MIN_VISIBLE = 0.55
   // Automatic motion: on upright screens a wide piece starts at its hotspot and drifts toward the
-  // side with more art. A path set in Sanity runs from the hotspot toward its end point instead,
-  // in any direction, on any screen where the piece is cropped.
-  const PAN_SPEED = 28 // CSS pixels per second
-  const MAX_PATH_SPEED = 60
+  // side with more art. A path set in Sanity runs from the hotspot to its end point instead, in any
+  // direction, on any screen where the piece is cropped. Every piece moves at the same speed; a
+  // piece with a long path stays up until it arrives.
+  const PAN_SPEED = Number(hero.dataset.panSpeed) || 28 // CSS pixels per second
   const MAX_PATH_ZOOM = 1.3
 
   type Pan = {from: [number, number]; to: [number, number]; duration: number; animation?: Animation}
@@ -395,8 +396,7 @@ const {slides, name, eyebrow, seconds, transition, socials} = Astro.props
         let distance = Math.hypot(to[0] - from[0], to[1] - from[1])
         let duration: number
         if (path) {
-          // Reach the end point as the piece leaves, unless that would mean rushing
-          duration = Math.max((seconds + 1.5) * 1000, (distance / MAX_PATH_SPEED) * 1000)
+          duration = (distance / PAN_SPEED) * 1000
         } else {
           const travel = Math.min(distance, PAN_SPEED * (seconds + 1.5))
           to = [from[0] + ((to[0] - from[0]) * travel) / (distance || 1), from[1]]
@@ -429,7 +429,7 @@ const {slides, name, eyebrow, seconds, transition, socials} = Astro.props
         {transform: `translate(${pan.from[0]}px, ${pan.from[1]}px)`},
         {transform: `translate(${pan.to[0]}px, ${pan.to[1]}px)`},
       ],
-      {duration: pan.duration, easing: 'ease-in-out', fill: 'forwards'},
+      {duration: pan.duration, easing: 'linear', fill: 'forwards'},
     )
   }
 
@@ -487,12 +487,19 @@ const {slides, name, eyebrow, seconds, transition, socials} = Astro.props
     load(slides[(current + 1) % slides.length])
   }
 
+  // How long a piece stays up: the usual time, or long enough to finish its path
+  function holdFor(slide: HTMLElement) {
+    const pan = pans.get(slide)
+    const path = slide.dataset.motion === 'path' && pan ? pan.duration + 600 : 0
+    return Math.max(seconds * 1000, path)
+  }
+
   function schedule() {
     clearTimeout(timer)
     timer = window.setTimeout(async () => {
       await show((current + 1) % slides.length)
       schedule()
-    }, seconds * 1000)
+    }, holdFor(slides[current]))
   }
 
   if (slides.length > 1) {
