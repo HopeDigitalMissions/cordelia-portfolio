@@ -17,6 +17,8 @@ export const landingPage = defineType({
     defineField({
       name: 'name',
       type: 'string',
+      description:
+        'Used for the browser tab, search results and screen readers. The lettered name on the card is artwork, so changing this does not redraw it.',
       initialValue: 'Cordelia Moore',
       validation: (rule) => rule.required(),
     }),
