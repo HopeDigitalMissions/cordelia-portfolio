@@ -16,6 +16,10 @@ In Sanity Studio, switch on **Include on landing page** for any artwork to add i
 
 Each **Project** in the Studio has a title, an optional description, a card image (crop it to a tall poster shape) and an ordered list of pieces. Drag cards into order on **Projects page**. Any piece can carry an MP4 in its Video field; the gallery shows its image with a play button.
 
+## About page
+
+Open **About page** in the Studio to change her photo, bio, work list, contact text and email, or to add a résumé PDF for visitors to download. A cut-out PNG stands in front of a white arch centered on the photo's hotspot; an ordinary photo gets a white frame.
+
 ## Folders
 
 - `src/pages/` site pages

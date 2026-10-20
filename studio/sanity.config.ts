@@ -23,6 +23,10 @@ export default defineConfig({
               .id('projectsPage')
               .child(S.document().schemaType('projectsPage').documentId('projectsPage')),
             S.listItem()
+              .title('About page')
+              .id('aboutPage')
+              .child(S.document().schemaType('aboutPage').documentId('aboutPage')),
+            S.listItem()
               .title('Portfolio page')
               .id('portfolioPage')
               .child(

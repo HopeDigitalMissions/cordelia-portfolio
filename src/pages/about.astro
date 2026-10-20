@@ -1,0 +1,359 @@
+---
+import Page from '../layouts/Page.astro'
+import {getSite, hotspotPosition, urlFor} from '../lib/sanity'
+import {getAbout, toHtml, toPlainText} from '../lib/about'
+
+const site = await getSite()
+const about = await getAbout()
+const {photo, work = []} = about
+
+const portrait = photo && (() => {
+  const crop = photo.crop ?? {top: 0, bottom: 0, left: 0, right: 0}
+  const width = Math.round(photo.dimensions.width * (1 - crop.left - crop.right))
+  const height = Math.round(photo.dimensions.height * (1 - crop.top - crop.bottom))
+  const src = (w: number) => urlFor(photo).width(w).quality(90).auto('format').url()
+  const widths = [400, 600, 800, 1000, 1200, 1600, 2000].filter((w) => w < width * 0.95)
+  const [x, y] = hotspotPosition(photo).split(' ')
+  return {
+    width,
+    height,
+    src: src(Math.min(800, width)),
+    srcset: [...widths, width].map((w) => `${src(w)} ${w}w`).join(', '),
+    // A cut-out stands in front of a white arch centered on the hotspot; a plain photo gets a white frame
+    cutout: photo.isOpaque === false,
+    style: `--ratio: ${width / height}; --fx: ${x}; --fy: ${y};`,
+  }
+})()
+
+const lead = toPlainText(about.bio?.[0])
+const contact = toHtml(about.contact)
+
+const person = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: site.name,
+  jobTitle: site.eyebrow,
+  description: lead || undefined,
+  image: photo ? urlFor(photo).width(800).url() : undefined,
+  email: about.email ? `mailto:${about.email}` : undefined,
+  sameAs: Object.values(site.socials).filter(Boolean),
+}
+---
+
+<Page title={`About | ${site.name}`} site={site} description={lead || `About ${site.name}, ${site.eyebrow.toLowerCase()}.`}>
+  <article class="about">
+    {
+      portrait && (
+        <div class="side">
+          <figure class:list={['portrait', portrait.cutout ? 'is-cutout' : 'is-photo']} style={portrait.style}>
+            <img
+              src={portrait.src}
+              srcset={portrait.srcset}
+              sizes="(min-width: 900px) 36vw, 80vw"
+              alt={photo!.alt ?? ''}
+              width={portrait.width}
+              height={portrait.height}
+              loading="eager"
+              decoding="async"
+            />
+          </figure>
+        </div>
+      )
+    }
+
+    <div class="text">
+      <h1 class="heading">About</h1>
+      <div class="bio" set:html={toHtml(about.bio)} />
+
+      {
+        work.length > 0 && (
+          <section class="work" aria-labelledby="work-heading">
+            <h2 id="work-heading">{about.workTitle || 'Work'}</h2>
+            <ul>
+              {work.map((item) => (
+                <li>
+                  <span class="work-title">{item.title}</span>
+                  {item.note && <span class="note">{item.note}</span>}
+                  {item.role && <span class="role">{item.role}</span>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
+      }
+
+      {
+        (contact || about.email || about.resume) && (
+          <section class="contact" aria-labelledby="contact-heading">
+            <h2 id="contact-heading">{about.contactTitle || 'Work with me'}</h2>
+            <div class="contact-text" set:html={contact} />
+            {(about.email || about.resume) && (
+              <p class="actions">
+                {about.email && (
+                  <a class="button email" href={`mailto:${about.email}`}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M3.5 6.5h17v11h-17z M3.5 7l8.5 6.5L20.5 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+                    </svg>
+                    {about.email}
+                  </a>
+                )}
+                {about.resume && (
+                  <a class="button resume" href={`${about.resume}?dl=`} download>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 4v11m-5-5 5 5 5-5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    R&eacute;sum&eacute;
+                  </a>
+                )}
+              </p>
+            )}
+          </section>
+        )
+      }
+    </div>
+  </article>
+
+  <script type="application/ld+json" set:html={JSON.stringify(person)} />
+</Page>
+
+<style>
+  .about {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: clamp(2rem, 6vw, 6.5rem);
+    align-items: start;
+    max-width: 1180px;
+    margin: clamp(0.5rem, 3vw, 2.5rem) auto 0;
+    color: var(--cocoa);
+    /* The figure can be shifted sideways to center the arch, so never let it widen the page */
+    overflow-x: clip;
+  }
+
+  /* Portrait */
+
+  .side {
+    position: sticky;
+    top: clamp(1rem, 4vh, 2.5rem);
+  }
+
+  .portrait {
+    position: relative;
+    margin: 0 auto;
+    width: min(100%, calc((100svh - 12rem) * var(--ratio)));
+  }
+
+  .portrait img {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .is-cutout {
+    /* Center the composition on her rather than on the picture */
+    translate: calc(50% - var(--fx)) 0;
+  }
+
+  /* White arch behind the cut-out, its top at the hotspot's height */
+  .is-cutout::before {
+    content: '';
+    position: absolute;
+    top: var(--fy);
+    bottom: 0;
+    left: calc(var(--fx) - 44%);
+    width: 88%;
+    background: var(--paper);
+    border-radius: 100vmax 100vmax 0 0;
+  }
+
+  .is-photo img {
+    border: clamp(8px, 1vw, 14px) solid var(--paper);
+  }
+
+  /* Text */
+
+  .heading {
+    margin: 0 0 clamp(1rem, 2vw, 1.5rem);
+    font-size: clamp(1.1rem, 0.9rem + 1vw, 1.6rem);
+    font-weight: 500;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+  }
+
+  .bio :global(p) {
+    margin: 0 0 1em;
+    max-width: 36em;
+    font-size: clamp(1.02rem, 0.95rem + 0.25vw, 1.15rem);
+    line-height: 1.7;
+    text-wrap: pretty;
+  }
+
+  .bio :global(p:first-child) {
+    max-width: 22em;
+    margin-bottom: 0.85em;
+    font-size: clamp(1.4rem, 1rem + 1.4vw, 2.1rem);
+    font-weight: 450;
+    line-height: 1.3;
+  }
+
+  .bio :global(a),
+  .contact-text :global(a) {
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.18em;
+  }
+
+  .work,
+  .contact {
+    margin-top: clamp(1.75rem, 4vw, 2.75rem);
+    max-width: 40rem;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+  }
+
+  .work h2 {
+    padding-bottom: 0.7rem;
+    border-bottom: 2px solid var(--cocoa);
+  }
+
+  .work ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .work li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem 0.7rem;
+    padding: 0.95rem 0;
+    border-bottom: 1px solid rgb(78 47 27 / 0.22);
+  }
+
+  .work-title {
+    font-size: clamp(1.05rem, 1rem + 0.2vw, 1.2rem);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .note {
+    padding: 0.35em 0.8em 0.3em 0.92em;
+    border-radius: 999px;
+    background: var(--paper);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .role {
+    flex-basis: 100%;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--cocoa-soft);
+  }
+
+  .contact {
+    padding: clamp(1.25rem, 3vw, 2rem);
+    background: var(--paper);
+  }
+
+  .contact-text :global(p) {
+    margin: 0.8em 0 0;
+    font-size: clamp(1rem, 0.95rem + 0.2vw, 1.1rem);
+    line-height: 1.65;
+    text-wrap: pretty;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin: 1.25rem 0 0;
+  }
+
+  .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55em;
+    min-height: 2.9rem;
+    padding: 0.6em 1.3em;
+    border: 2px solid var(--cocoa);
+    border-radius: 999px;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+      background-color 150ms,
+      color 150ms,
+      border-color 150ms;
+  }
+
+  .button svg {
+    flex: none;
+    width: 1.25em;
+    height: 1.25em;
+  }
+
+  .email {
+    background: var(--cocoa);
+    color: var(--paper);
+    font-size: clamp(0.95rem, 0.9rem + 0.2vw, 1.05rem);
+    overflow-wrap: anywhere;
+  }
+
+  .resume {
+    font-size: 0.8rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .button:hover,
+  .button:focus-visible {
+    background: var(--sun);
+    border-color: var(--sun);
+    color: var(--cocoa);
+  }
+
+  .button:focus-visible,
+  .text :global(a:focus-visible) {
+    outline: 2px solid var(--cocoa);
+    outline-offset: 3px;
+  }
+
+  /* Phones and narrow windows: photo on top, cropped below the chair seat so the bio starts sooner */
+  @media (max-width: 899px) {
+    .about {
+      grid-template-columns: minmax(0, 1fr);
+      gap: clamp(1.5rem, 5vw, 2.5rem);
+    }
+
+    .side {
+      position: static;
+    }
+
+    .portrait {
+      --width: min(76vw, 340px);
+      width: var(--width);
+    }
+
+    .is-cutout {
+      height: calc(var(--width) / var(--ratio) * 0.66);
+      clip-path: inset(-100vmax -100vmax 0 -100vmax);
+    }
+
+    .text {
+      max-width: 40rem;
+      margin: 0 auto;
+    }
+  }
+</style>
