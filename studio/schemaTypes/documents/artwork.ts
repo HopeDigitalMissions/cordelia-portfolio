@@ -72,6 +72,13 @@ export const artwork = defineType({
       initialValue: false,
     }),
     defineField({
+      // Stamped by Choose pieces so its clicks don't each rebuild the site; it rebuilds once afterwards
+      name: 'portfolioPickedAt',
+      type: 'datetime',
+      hidden: true,
+      readOnly: true,
+    }),
+    defineField({
       name: 'showOnLanding',
       title: 'Include on landing page',
       type: 'boolean',

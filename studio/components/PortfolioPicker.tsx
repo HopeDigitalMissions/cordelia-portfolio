@@ -49,6 +49,7 @@ export function PortfolioPicker() {
   const [show, setShow] = useState<Show>('all')
   const saving = useRef(0)
   const stale = useRef(false)
+  const announcing = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const thumb = useMemo(() => {
     const builder = createImageUrlBuilder(client)
@@ -124,6 +125,32 @@ export function PortfolioPicker() {
     }
   }, [client, load, toast])
 
+  // The site rebuilds when the Portfolio page changes, not when a piece is switched from here
+  // (see portfolioPickedAt), so a run of clicks ends in a single rebuild once she pauses or leaves
+  const announce = useCallback(() => {
+    if (announcing.current) clearTimeout(announcing.current)
+    announcing.current = null
+    client
+      .transaction()
+      .createIfNotExists({_id: 'portfolioPage', _type: 'portfolioPage'})
+      .patch('portfolioPage', {set: {piecesChangedAt: new Date().toISOString()}})
+      .commit({visibility: 'async'})
+      .catch((err) =>
+        toast.push({status: 'error', title: 'Could not tell the site to update', description: err.message}),
+      )
+  }, [client, toast])
+
+  useEffect(() => {
+    const flush = () => {
+      if (announcing.current) announce()
+    }
+    window.addEventListener('pagehide', flush)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      flush()
+    }
+  }, [announce])
+
   const setOn = useCallback(
     async (ids: string[], on: boolean) => {
       if (!pieces) return
@@ -140,11 +167,14 @@ export function PortfolioPicker() {
       flip(on)
       saving.current++
       const transaction = client.transaction()
+      const pickedAt = new Date().toISOString()
       for (const piece of changing) {
-        for (const id of piece.copies) transaction.patch(id, {set: {showOnPortfolio: on}})
+        for (const id of piece.copies) transaction.patch(id, {set: {showOnPortfolio: on, portfolioPickedAt: pickedAt}})
       }
       try {
         await transaction.commit({visibility: 'async'})
+        if (announcing.current) clearTimeout(announcing.current)
+        announcing.current = setTimeout(announce, 15000)
       } catch (err) {
         flip(!on)
         toast.push({status: 'error', title: 'Could not save that change', description: (err as Error).message})
@@ -156,7 +186,7 @@ export function PortfolioPicker() {
         }
       }
     },
-    [client, load, pieces, toast],
+    [announce, client, load, pieces, toast],
   )
 
   if (!pieces) {
@@ -176,8 +206,8 @@ export function PortfolioPicker() {
       <Stack gap={5}>
         <Stack gap={4}>
           <Text size={1} muted>
-            Click a piece to put it on the Portfolio page or take it off. Each click saves right away. To choose which
-            pieces lead the page, use the Order and intro tab.
+            Click a piece to put it on the Portfolio page or take it off. Each click saves right away, and the site
+            updates a few minutes after you finish. To choose which pieces lead the page, use the Order and intro tab.
           </Text>
           <Flex gap={2} wrap="wrap">
             <Button

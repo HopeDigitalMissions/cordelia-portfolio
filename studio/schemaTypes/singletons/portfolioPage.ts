@@ -29,6 +29,13 @@ export const portfolioPage = defineType({
       options: {layout: 'grid'},
       validation: (rule) => rule.unique(),
     }),
+    defineField({
+      // Touched by Choose pieces once she stops clicking, which is what rebuilds the site
+      name: 'piecesChangedAt',
+      type: 'datetime',
+      hidden: true,
+      readOnly: true,
+    }),
   ],
   preview: {
     prepare: () => ({title: 'Portfolio page'}),
