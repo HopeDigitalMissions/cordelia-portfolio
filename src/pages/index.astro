@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro'
 import Hero, {type Slide} from '../components/Hero.astro'
+import type {Socials} from '../components/SocialLinks.astro'
 import {sanity, urlFor} from '../lib/sanity'
 
 interface Artwork {
@@ -25,13 +26,14 @@ interface LandingPage {
   transition?: 'fade' | 'dip'
   slides?: Artwork[]
   extras?: Artwork[]
+  socials?: Socials
 }
 
 const artworkFields = `_id, title, year, image, landingFit, "dimensions": image.asset->metadata.dimensions, "lqip": image.asset->metadata.lqip`
 
 const page = await sanity.fetch<LandingPage | null>(`
   *[_id == "landingPage"][0]{
-    eyebrow, name, slideSeconds, transition,
+    eyebrow, name, slideSeconds, transition, socials,
     "slides": slides[@->showOnLanding == true && defined(@->image.asset)]->{${artworkFields}},
     "extras": *[_type == "artwork" && showOnLanding == true && defined(image.asset)
       && !(_id in ^.slides[]._ref) && !(_id in path("drafts.**"))] | order(year desc, _createdAt desc){${artworkFields}}
@@ -80,5 +82,6 @@ const eyebrow = page?.eyebrow ?? 'Illustrator & Concept Artist'
     eyebrow={eyebrow}
     seconds={page?.slideSeconds ?? 5}
     transition={page?.transition ?? 'fade'}
+    socials={page?.socials ?? {}}
   />
 </Base>

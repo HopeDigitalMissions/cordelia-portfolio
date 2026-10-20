@@ -23,6 +23,18 @@ export const landingPage = defineType({
       validation: (rule) => rule.required(),
     }),
     defineField({
+      name: 'socials',
+      title: 'Social links',
+      type: 'object',
+      description: 'Shown as round buttons at the bottom of the landing page. Leave one empty to hide its button.',
+      options: {collapsible: true, collapsed: false},
+      fields: [
+        defineField({name: 'instagram', title: 'Instagram', type: 'url'}),
+        defineField({name: 'cara', title: 'Cara', type: 'url'}),
+        defineField({name: 'linkedin', title: 'LinkedIn', type: 'url'}),
+      ],
+    }),
+    defineField({
       name: 'slides',
       title: 'Slideshow order',
       type: 'array',

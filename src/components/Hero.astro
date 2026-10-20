@@ -1,5 +1,6 @@
 ---
 import NameMark from '../assets/name-mark.svg'
+import SocialLinks, {type Socials} from './SocialLinks.astro'
 
 export interface Slide {
   src: string
@@ -20,14 +21,15 @@ interface Props {
   eyebrow: string
   seconds: number
   transition: 'fade' | 'dip'
+  socials: Socials
 }
 
-const {slides, name, eyebrow, seconds, transition} = Astro.props
+const {slides, name, eyebrow, seconds, transition, socials} = Astro.props
 
 const nav = [
-  {label: 'Portfolio', href: '/portfolio'},
-  {label: 'About', href: '/about'},
   {label: 'Projects', href: '/projects'},
+  {label: 'About', href: '/about'},
+  {label: 'Portfolio', href: '/portfolio'},
 ]
 ---
 
@@ -73,6 +75,8 @@ const nav = [
       </ul>
     </nav>
   </div>
+
+  <SocialLinks socials={socials} class="hero-socials" />
 </main>
 
 <style>
@@ -84,8 +88,21 @@ const nav = [
     padding: var(--frame);
     background: var(--sun);
     display: grid;
-    place-items: center;
+    grid-template:
+      '.' 1fr
+      'card' auto
+      'socials' 1fr
+      / minmax(0, 1fr);
+    justify-items: center;
     overflow: hidden;
+  }
+
+  .hero :global(.hero-socials) {
+    grid-area: socials;
+    align-self: end;
+    position: relative;
+    z-index: 4;
+    margin: 0.75rem 0 clamp(0.75rem, 2.5vh, 1.5rem);
   }
 
   .stage {
@@ -156,6 +173,7 @@ const nav = [
   }
 
   .card {
+    grid-area: card;
     position: relative;
     z-index: 4;
     width: min(760px, 100% - 2rem);
@@ -227,12 +245,41 @@ const nav = [
   /* Phones held upright: the card moves to the bottom so the art keeps the top of the screen */
   @media (max-aspect-ratio: 4/5) {
     .hero {
-      place-items: end center;
+      grid-template:
+        '.' 1fr
+        'socials' auto
+        'card' auto
+        / minmax(0, 1fr);
       padding-bottom: calc(var(--frame) + 0.75rem + env(safe-area-inset-bottom));
+    }
+
+    .hero :global(.hero-socials) {
+      margin: 0 0 0.75rem;
     }
 
     .slide.is-whole img {
       object-position: 50% 30%;
+    }
+  }
+
+  /* Phones turned sideways: keep the card compact so the art still shows */
+  @media (max-height: 520px) and (min-aspect-ratio: 1/1) {
+    .card {
+      width: min(560px, 100% - 2rem);
+      padding: 1rem 1.5rem 0.5rem;
+    }
+
+    .eyebrow {
+      margin-bottom: 0.5em;
+    }
+
+    .name-mark {
+      width: 44vh;
+      min-width: 0;
+    }
+
+    nav ul {
+      margin-top: 0.5rem;
     }
   }
 

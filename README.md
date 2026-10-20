@@ -10,7 +10,7 @@ Portfolio site for a professional digital artist.
 
 ## Editing the home page
 
-In Sanity Studio, switch on **Include on landing page** for any artwork to add it to the full-screen slideshow. Open **Landing page** to drag pieces into order, change the seconds per piece, pick the transition, and edit the name card text. The site reads Sanity when it builds, so changes appear after the next deploy.
+In Sanity Studio, switch on **Include on landing page** for any artwork to add it to the full-screen slideshow. Open **Landing page** to drag pieces into order, change the seconds per piece, pick the transition, edit the name card text, and set her Instagram, Cara and LinkedIn links. The site reads Sanity when it builds, so changes appear after the next deploy.
 
 ## Folders
 
