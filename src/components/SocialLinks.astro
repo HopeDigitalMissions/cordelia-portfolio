@@ -12,7 +12,8 @@ interface Props {
 
 const {socials, class: className} = Astro.props
 
-// Instagram and LinkedIn glyphs from Bootstrap Icons (MIT); Cara's is the C from its wordmark
+// Instagram and LinkedIn glyphs from Bootstrap Icons (MIT); Cara's is the C from its wordmark.
+// Each viewBox is square so the glyphs scale evenly.
 const icons = {
   instagram: {
     label: 'Instagram',
@@ -33,7 +34,16 @@ const icons = {
 
 const links = (Object.keys(icons) as (keyof typeof icons)[])
   .filter((key) => socials[key])
-  .map((key) => ({...icons[key], href: socials[key]!}))
+  .map((key) => {
+    // Fit each glyph into an 18-unit square in the middle of a 40-unit circle
+    const [minX, minY, size] = icons[key].viewBox.split(' ').map(Number)
+    return {
+      ...icons[key],
+      key,
+      href: socials[key]!,
+      transform: `translate(11 11) scale(${18 / size}) translate(${-minX} ${-minY})`,
+    }
+  })
 ---
 
 {
@@ -42,8 +52,12 @@ const links = (Object.keys(icons) as (keyof typeof icons)[])
       {links.map((link) => (
         <li>
           <a href={link.href} target="_blank" rel="noopener me" aria-label={link.label} title={link.label}>
-            <svg viewBox={link.viewBox} aria-hidden="true" fill="currentColor">
-              <path d={link.d} />
+            <svg viewBox="0 0 40 40" aria-hidden="true">
+              <mask id={`social-cutout-${link.key}`}>
+                <rect width="40" height="40" fill="#fff" />
+                <path d={link.d} transform={link.transform} fill="#000" />
+              </mask>
+              <circle cx="20" cy="20" r="20" fill="currentColor" mask={`url(#social-cutout-${link.key})`} />
             </svg>
           </a>
         </li>
@@ -58,36 +72,43 @@ const links = (Object.keys(icons) as (keyof typeof icons)[])
     margin: 0;
     padding: 0;
     display: flex;
-    gap: 0.6rem;
+    justify-content: center;
+    gap: 0.75rem;
   }
 
+  /* Brown discs with the logo cut out, so the card shows through */
   a {
-    display: grid;
-    place-items: center;
-    width: 2.5rem;
-    height: 2.5rem;
+    display: block;
+    width: 2.25rem;
+    height: 2.25rem;
     border-radius: 50%;
-    background: var(--paper);
     color: var(--cocoa);
-    box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
     transition:
-      background-color 150ms,
+      color 150ms,
       transform 150ms ease-out;
   }
 
   a:hover,
   a:focus-visible {
-    background: var(--sun);
+    color: var(--honey);
     transform: translateY(-2px);
   }
 
   a:focus-visible {
-    outline: 2px solid var(--cocoa);
-    outline-offset: 2px;
+    outline: 2px solid var(--sun-deep);
+    outline-offset: 3px;
   }
 
   svg {
-    width: 1.1rem;
-    height: 1.1rem;
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  @media (max-width: 480px) {
+    a {
+      width: 2.5rem;
+      height: 2.5rem;
+    }
   }
 </style>
