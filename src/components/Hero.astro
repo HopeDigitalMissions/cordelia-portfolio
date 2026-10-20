@@ -397,12 +397,12 @@ const {slides, name, eyebrow, seconds, panSpeed, transition, socials} = Astro.pr
         let distance = Math.hypot(to[0] - from[0], to[1] - from[1])
         let duration: number
         if (path) {
-          duration = (distance / PAN_SPEED) * 1000
+          duration = cruiseDuration(distance)
         } else {
           const travel = Math.min(distance, PAN_SPEED * (seconds + 1.5))
           to = [from[0] + ((to[0] - from[0]) * travel) / (distance || 1), from[1]]
           distance = travel
-          duration = (travel / PAN_SPEED) * 1000
+          duration = cruiseDuration(travel)
         }
         if (distance > 8) {
           slide.classList.add('is-panning')
@@ -421,17 +421,46 @@ const {slides, name, eyebrow, seconds, panSpeed, transition, socials} = Astro.pr
     startPan(slides[current])
   }
 
+  // Every pan eases in and out over the same short ramp and cruises at Pan speed in between, so a
+  // long path takes longer without its start and finish dragging out too
+  const RAMP = 1400 // ms
+
+  function cruiseDuration(distance: number) {
+    const cruise = (distance / PAN_SPEED) * 1000
+    // Each ramp covers half the distance it would at full speed, which adds one ramp in total
+    return cruise >= RAMP ? cruise + RAMP : 2 * Math.sqrt(cruise * RAMP)
+  }
+
   function startPan(slide: HTMLElement) {
     const pan = pans.get(slide)
     if (!pan) return
     pan.animation?.cancel()
-    pan.animation = slide.querySelector('img')!.animate(
-      [
-        {transform: `translate(${pan.from[0]}px, ${pan.from[1]}px)`},
-        {transform: `translate(${pan.to[0]}px, ${pan.to[1]}px)`},
-      ],
-      {duration: pan.duration, easing: 'ease-in-out', fill: 'forwards'},
-    )
+    const at = (share: number) => {
+      const x = pan.from[0] + (pan.to[0] - pan.from[0]) * share
+      const y = pan.from[1] + (pan.to[1] - pan.from[1]) * share
+      return `translate(${x}px, ${y}px)`
+    }
+    const ramp = Math.min(RAMP, pan.duration / 2)
+    const time = ramp / pan.duration
+    // Share of the distance covered by the end of the first ramp
+    const covered = pan.duration > 2 * RAMP ? (RAMP / 2) / (pan.duration - RAMP) : 0.5
+    // Speed-up and slow-down follow a gentle curve that meets the steady middle at the same speed
+    const easeIn = 'cubic-bezier(0.333, 0, 0.667, 0.333)'
+    const easeOut = 'cubic-bezier(0.333, 0.667, 0.667, 1)'
+    const keyframes: Keyframe[] =
+      time >= 0.5
+        ? [
+            {offset: 0, transform: at(0), easing: easeIn},
+            {offset: 0.5, transform: at(0.5), easing: easeOut},
+            {offset: 1, transform: at(1)},
+          ]
+        : [
+            {offset: 0, transform: at(0), easing: easeIn},
+            {offset: time, transform: at(covered), easing: 'linear'},
+            {offset: 1 - time, transform: at(1 - covered), easing: easeOut},
+            {offset: 1, transform: at(1)},
+          ]
+    pan.animation = slide.querySelector('img')!.animate(keyframes, {duration: pan.duration, fill: 'forwards'})
   }
 
   const stopPan = (slide: HTMLElement) => pans.get(slide)?.animation?.cancel()
