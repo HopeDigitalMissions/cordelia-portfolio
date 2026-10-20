@@ -74,8 +74,9 @@ const nav = [
         {nav.map((item) => <li><a href={item.href}>{item.label}</a></li>)}
       </ul>
     </nav>
-    <SocialLinks socials={socials} class="card-socials" />
   </div>
+
+  <SocialLinks socials={socials} class="hero-socials" />
 </main>
 
 <style>
@@ -90,14 +91,18 @@ const nav = [
     grid-template:
       '.' 1fr
       'card' auto
-      '.' 1fr
+      'socials' 1fr
       / minmax(0, 1fr);
     justify-items: center;
     overflow: hidden;
   }
 
-  .card :global(.card-socials) {
-    margin-top: clamp(0.75rem, 2vw, 1.25rem);
+  .hero :global(.hero-socials) {
+    grid-area: socials;
+    align-self: end;
+    position: relative;
+    z-index: 4;
+    margin: 0.75rem 0 clamp(0.75rem, 2.5vh, 1.5rem);
   }
 
   .stage {
@@ -242,9 +247,14 @@ const nav = [
     .hero {
       grid-template:
         '.' 1fr
+        'socials' auto
         'card' auto
         / minmax(0, 1fr);
       padding-bottom: calc(var(--frame) + 0.75rem + env(safe-area-inset-bottom));
+    }
+
+    .hero :global(.hero-socials) {
+      margin: 0 0 0.75rem;
     }
 
     .slide.is-whole img {
@@ -256,7 +266,7 @@ const nav = [
   @media (max-height: 520px) and (min-aspect-ratio: 1/1) {
     .card {
       width: min(560px, 100% - 2rem);
-      padding: 1rem 1.5rem 0.9rem;
+      padding: 1rem 1.5rem 0.5rem;
     }
 
     .eyebrow {
