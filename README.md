@@ -12,7 +12,7 @@ Portfolio site for a professional digital artist.
 
 - `src/pages/` site pages
 - `src/layouts/`, `src/components/` shared page structure and UI
-- `studio/` Sanity Studio (the admin where artwork is managed); copy `studio/.env.example` to `studio/.env` and add the project ID
+- `studio/` Sanity Studio (the admin where artwork is managed), connected to Sanity project `ke2xjwml` (dataset `production`)
 - `public/` static files (favicon, etc.)
 - `artwork-originals/` local, git-ignored staging area for full-res masters
 - `docs/` planning notes

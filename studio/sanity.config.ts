@@ -5,7 +5,7 @@ import {schemaTypes} from './schemaTypes'
 export default defineConfig({
   name: 'default',
   title: "Cordelia's Portfolio",
-  projectId: process.env.SANITY_STUDIO_PROJECT_ID!,
+  projectId: process.env.SANITY_STUDIO_PROJECT_ID || 'ke2xjwml',
   dataset: process.env.SANITY_STUDIO_DATASET || 'production',
   plugins: [structureTool()],
   schema: {types: schemaTypes},
