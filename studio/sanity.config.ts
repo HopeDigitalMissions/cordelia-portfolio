@@ -1,6 +1,7 @@
 import {defineConfig} from 'sanity'
 import {structureTool} from 'sanity/structure'
 import {schemaTypes, singletonTypes} from './schemaTypes'
+import {PortfolioPicker} from './components/PortfolioPicker'
 
 export default defineConfig({
   name: 'default',
@@ -21,6 +22,18 @@ export default defineConfig({
               .title('Projects page')
               .id('projectsPage')
               .child(S.document().schemaType('projectsPage').documentId('projectsPage')),
+            S.listItem()
+              .title('Portfolio page')
+              .id('portfolioPage')
+              .child(
+                S.document()
+                  .schemaType('portfolioPage')
+                  .documentId('portfolioPage')
+                  .views([
+                    S.view.component(PortfolioPicker).title('Choose pieces').id('pieces'),
+                    S.view.form().title('Order and intro'),
+                  ]),
+              ),
             S.divider(),
             S.documentTypeListItem('project').title('Projects'),
             S.documentTypeListItem('artwork').title('Artwork'),

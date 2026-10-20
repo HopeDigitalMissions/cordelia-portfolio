@@ -64,6 +64,14 @@ export const artwork = defineType({
       options: {layout: 'tags'},
     }),
     defineField({
+      name: 'showOnPortfolio',
+      title: 'Include on portfolio page',
+      type: 'boolean',
+      description:
+        'Shows this piece on the Portfolio page. To switch lots of pieces on or off at once, open Portfolio page > Choose pieces.',
+      initialValue: false,
+    }),
+    defineField({
       name: 'showOnLanding',
       title: 'Include on landing page',
       type: 'boolean',

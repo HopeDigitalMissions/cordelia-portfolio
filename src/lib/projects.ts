@@ -8,6 +8,8 @@ export interface Piece {
   dimensions: {width: number; height: number}
   lqip?: string
   video?: string
+  /** Set on the Portfolio page, so the viewer can link to the project the piece belongs to */
+  project?: {title: string; slug: string}
 }
 
 export interface Cover {
@@ -28,7 +30,7 @@ export interface Project extends ProjectSummary {
   pieces: Piece[]
 }
 
-const pieceFields = `_id, title, image, "url": image.asset->url, "dimensions": image.asset->metadata.dimensions, "lqip": image.asset->metadata.lqip, "video": video.asset->url`
+export const pieceFields = `_id, title, image, "url": image.asset->url, "dimensions": image.asset->metadata.dimensions, "lqip": image.asset->metadata.lqip, "video": video.asset->url`
 
 /** Projects in the order set on the Projects page, then any others A to Z */
 export async function getProjects(): Promise<{intro?: string; projects: Project[]}> {

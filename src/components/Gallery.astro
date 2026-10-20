@@ -34,6 +34,8 @@ const items = pieces.map((piece) => {
         data-video={item.video}
         data-width={item.width}
         data-height={item.height}
+        data-project-href={item.project && `/projects/${item.project.slug}`}
+        data-project-title={item.project?.title}
         aria-label={item.video ? `Play ${item.title}` : `View ${item.title}`}
         style={`aspect-ratio: ${item.width} / ${item.height};`}
       >
@@ -79,6 +81,12 @@ const items = pieces.map((piece) => {
       <path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
     </svg>
   </button>
+  <a class="viewer-project" href="/projects" hidden data-project>
+    <span>View project: <span data-project-title></span></span>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+    </svg>
+  </a>
 </dialog>
 
 <style>
@@ -275,6 +283,62 @@ const items = pieces.map((piece) => {
     pointer-events: none;
   }
 
+  /* On the Portfolio page: a way through to the rest of the piece's project */
+  .viewer-project {
+    position: absolute;
+    left: 50%;
+    bottom: clamp(10px, 2vmin, 20px);
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    max-width: calc(100% - 2 * clamp(10px, 2vmin, 20px));
+    padding: 0.7rem 0.85rem 0.7rem 1.15rem;
+    border-radius: 999px;
+    background: var(--paper);
+    color: var(--cocoa);
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.2);
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      background-color 150ms,
+      opacity 150ms;
+  }
+
+  .viewer-project > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .viewer-project svg {
+    flex: none;
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .viewer-project:hover,
+  .viewer-project:focus-visible {
+    background: var(--sun-deep);
+  }
+
+  .viewer-project:focus-visible {
+    outline: 2px solid var(--cocoa);
+    outline-offset: 2px;
+  }
+
+  .viewer-project[hidden] {
+    display: none;
+  }
+
+  .viewer:has(.is-zoomed) .viewer-project {
+    opacity: 0;
+    pointer-events: none;
+  }
+
   :global(html.viewer-open) {
     overflow: hidden;
   }
@@ -358,6 +422,16 @@ const items = pieces.map((piece) => {
     const prevButton = dialog.querySelector<HTMLButtonElement>('[data-prev]')!
     const nextButton = dialog.querySelector<HTMLButtonElement>('[data-next]')!
     prevButton.hidden = nextButton.hidden = pieces.length < 2
+    const projectLink = dialog.querySelector<HTMLAnchorElement>('[data-project]')!
+
+    // Only pieces shown outside their project carry one
+    function showProject(piece: HTMLElement) {
+      const href = piece.dataset.projectHref
+      projectLink.hidden = !href
+      if (!href) return
+      projectLink.href = href
+      projectLink.querySelector('[data-project-title]')!.textContent = piece.dataset.projectTitle ?? ''
+    }
 
     let index = 0
     let media: HTMLImageElement | HTMLVideoElement | null = null
@@ -435,6 +509,7 @@ const items = pieces.map((piece) => {
       loadedWidth = 0
       stage.classList.remove('is-zoomed')
       stage.replaceChildren()
+      showProject(piece)
 
       if (piece.dataset.video) {
         const video = document.createElement('video')
