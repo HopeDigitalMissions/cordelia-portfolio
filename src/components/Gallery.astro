@@ -7,19 +7,19 @@ interface Props {
 }
 
 const {pieces} = Astro.props
-const widths = [400, 640, 900, 1200, 1600, 2000, 2600]
+const widths = [400, 640, 900, 1200, 1600, 2000, 2600, 3200, 4000]
 
 const items = pieces.map((piece) => {
   const {width, height} = piece.dimensions
   // The gallery always shows the whole piece, so size it from the original asset rather than any crop
-  const src = (w: number) => urlFor(piece.image.asset).width(w).quality(82).auto('format').url()
-  const usable = widths.filter((w) => w < width)
+  const src = (w: number) => urlFor(piece.image.asset).width(w).quality(90).auto('format').url()
+  const usable = widths.filter((w) => w < width * 0.95)
   return {
     ...piece,
     width,
     height,
     src: src(Math.min(1200, width)),
-    srcset: [...usable, Math.min(width, 3200)].map((w) => `${src(w)} ${w}w`).join(', '),
+    srcset: [...usable, width].map((w) => `${src(w)} ${w}w`).join(', '),
   }
 })
 ---
@@ -334,7 +334,7 @@ const items = pieces.map((piece) => {
     let pan = {x: 0, y: 0}
 
     const natural = (piece: HTMLElement) => ({w: Number(piece.dataset.width), h: Number(piece.dataset.height)})
-    const sized = (url: string, w: number) => `${url}?w=${w}&q=88&auto=format`
+    const sized = (url: string, w: number) => `${url}?w=${w}&q=92&auto=format`
 
     function fit() {
       const {w, h} = natural(pieces[index])
@@ -346,11 +346,14 @@ const items = pieces.map((piece) => {
     // Ask the image CDN for just enough pixels for the size on screen, stepping up as the window grows
     function sharpen(img: HTMLImageElement, displayWidth: number) {
       const piece = pieces[index]
-      const want = Math.min(natural(piece).w, Math.ceil((displayWidth * devicePixelRatio) / 400) * 400)
+      const full = natural(piece).w
+      let want = Math.min(full, Math.ceil((displayWidth * devicePixelRatio) / 400) * 400)
+      // Close to the original anyway: just use the original
+      if (want > full * 0.8) want = full
       if (want <= loadedWidth) return
       loadedWidth = want
       const next = new Image()
-      next.src = sized(piece.dataset.full!, want)
+      next.src = want === full ? piece.dataset.full! : sized(piece.dataset.full!, want)
       next.decode().then(
         () => {
           if (media === img && !zoomed) img.src = next.src

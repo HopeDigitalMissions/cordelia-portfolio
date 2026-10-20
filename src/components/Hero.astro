@@ -323,6 +323,11 @@ const {slides, name, eyebrow, seconds, transition, socials} = Astro.props
       const mode = slide.dataset.fit
       const whole = mode === 'whole' || (mode === 'auto' && opposite && visible < MIN_VISIBLE)
       slide.classList.toggle('is-whole', whole)
+      // Tell the browser exactly how wide the piece is drawn so it fetches enough pixels for this screen
+      const drawn = whole
+        ? Math.min(stage.clientWidth, stage.clientHeight * aspect)
+        : Math.max(stage.clientWidth, stage.clientHeight * aspect)
+      slide.querySelector('img')!.sizes = `${Math.ceil(drawn)}px`
       if (whole && !slide.style.getPropertyValue('--backdrop')) {
         slide.style.setProperty('--backdrop', `url(${slide.dataset.backdrop})`)
       }

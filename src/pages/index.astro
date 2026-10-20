@@ -42,7 +42,8 @@ const page = await sanity.fetch<LandingPage | null>(`
 
 const artworks = [...(page?.slides ?? []), ...(page?.extras ?? [])]
 
-const widths = [640, 960, 1280, 1600, 2000, 2560, 3200, 3840]
+// Steps up to 5K-class screens; the original's own width is always the last option
+const widths = [640, 960, 1280, 1600, 2000, 2560, 3200, 3840, 4480, 5120, 6016]
 
 const slides: Slide[] = artworks.map(({image, dimensions, title, lqip, landingFit}) => {
   const crop = image.crop ?? {top: 0, bottom: 0, left: 0, right: 0}
@@ -53,11 +54,11 @@ const slides: Slide[] = artworks.map(({image, dimensions, title, lqip, landingFi
   const width = Math.round(dimensions.width * (1 - crop.left - crop.right))
   const height = Math.round(dimensions.height * (1 - crop.top - crop.bottom))
   const aspect = width / height
-  const usable = widths.filter((w) => w <= width)
-  const src = (w: number) => urlFor(image).width(w).quality(82).auto('format').url()
+  const usable = [...widths.filter((w) => w < width * 0.95), width]
+  const src = (w: number) => urlFor(image).width(w).quality(90).auto('format').url()
   return {
     src: src(Math.min(1920, width)),
-    srcset: (usable.length ? usable : [width]).map((w) => `${src(w)} ${w}w`).join(', '),
+    srcset: usable.map((w) => `${src(w)} ${w}w`).join(', '),
     // The frame is cover-cropped, so a wide piece on a tall screen needs pixels for the full height
     sizes: `(min-aspect-ratio: ${width}/${height}) 100vw, ${Math.ceil(100 * aspect)}vh`,
     alt: image.alt ?? title,
