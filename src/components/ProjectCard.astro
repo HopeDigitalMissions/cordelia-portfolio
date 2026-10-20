@@ -13,12 +13,9 @@ const poster = (w: number) => urlFor(cover!.image).width(w).height(Math.round(w 
 const widths = [320, 480, 640, 800, 1000]
 ---
 
-<!-- The image is already cut to the card's 2:3 shape (crop and hotspot from Sanity), so the
-     title's background lines up with it exactly -->
 <a
   class="card"
   href={`/projects/${project.slug}`}
-  style={cover ? `--poster: url(${poster(480)});` : undefined}
 >
   {
     cover && (
@@ -94,25 +91,21 @@ const widths = [320, 480, 640, 800, 1000]
     text-shadow:
       0 1px 2px rgb(0 0 0 / 0.5),
       0 0 18px rgb(0 0 0 / 0.45);
+    transition:
+      color 160ms ease-out,
+      text-shadow 160ms ease-out;
   }
 
-  /* Hover: a solid plate appears and the art shows through the letters */
+  /* Hover: a solid yellow plate appears behind the title and the letters turn brown */
   .card:hover .plate span,
   .card:focus-visible .plate span {
     opacity: 1;
     transform: none;
   }
 
-  .card:hover .title,
-  .card:focus-visible .title {
-    background: var(--poster) center / cover no-repeat;
-    -webkit-background-clip: text;
-    background-clip: text;
-  }
-
   .card:hover .title span,
   .card:focus-visible .title span {
-    color: transparent;
+    color: var(--cocoa);
     text-shadow: none;
   }
 
