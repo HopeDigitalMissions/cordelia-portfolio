@@ -34,6 +34,14 @@ export const aboutPage = defineType({
           description: 'A short description of the photo for screen readers and search engines.',
           validation: (rule) => rule.required().warning('Alt text helps accessibility and search'),
         }),
+        defineField({
+          name: 'archBottom',
+          title: 'Arch bottom',
+          type: 'number',
+          description:
+            'Optional, for cut-outs. Lifts the bottom of the white arch this many percent of the photo\u2019s height, so a foot can step out past its edge. Leave empty to run the arch to the bottom of the photo.',
+          validation: (rule) => rule.min(0).max(50),
+        }),
       ],
     }),
     defineField({

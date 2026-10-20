@@ -14,6 +14,7 @@ export interface Block {
 
 export interface About {
   photo?: SanityImage & {
+    archBottom?: number
     dimensions: {width: number; height: number}
     isOpaque?: boolean
     lqip?: string
@@ -30,7 +31,7 @@ export interface About {
 export async function getAbout(): Promise<About> {
   const about = await sanity.fetch<About | null>(`*[_id == "aboutPage"][0]{
     "photo": photo{
-      alt, asset, hotspot, crop,
+      alt, archBottom, asset, hotspot, crop,
       "dimensions": asset->metadata.dimensions,
       "isOpaque": asset->metadata.isOpaque,
       "lqip": asset->metadata.lqip

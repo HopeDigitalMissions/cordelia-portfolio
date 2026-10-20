@@ -21,7 +21,7 @@ const portrait = photo && (() => {
     srcset: [...widths, width].map((w) => `${src(w)} ${w}w`).join(', '),
     // A cut-out stands in front of a white arch centered on the hotspot; a plain photo gets a white frame
     cutout: photo.isOpaque === false,
-    style: `--ratio: ${width / height}; --fx: ${x}; --fy: ${y};`,
+    style: `--ratio: ${width / height}; --fx: ${x}; --fy: ${y}; --fb: ${photo.archBottom ?? 0}%;`,
   }
 })()
 
@@ -85,28 +85,30 @@ const person = {
       {
         (contact || about.email || about.resume) && (
           <section class="contact" aria-labelledby="contact-heading">
-            <h2 id="contact-heading">{about.contactTitle || 'Work with me'}</h2>
+            <div class="contact-head">
+              <h2 id="contact-heading">{about.contactTitle || 'Work with me'}</h2>
+              {(about.email || about.resume) && (
+                <p class="actions">
+                  {about.email && (
+                    <a class="button email" href={`mailto:${about.email}`}>
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M3.5 6.5h17v11h-17z M3.5 7l8.5 6.5L20.5 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+                      </svg>
+                      {about.email}
+                    </a>
+                  )}
+                  {about.resume && (
+                    <a class="button resume" href={`${about.resume}?dl=`} download>
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 4v11m-5-5 5 5 5-5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                      R&eacute;sum&eacute;
+                    </a>
+                  )}
+                </p>
+              )}
+            </div>
             <div class="contact-text" set:html={contact} />
-            {(about.email || about.resume) && (
-              <p class="actions">
-                {about.email && (
-                  <a class="button email" href={`mailto:${about.email}`}>
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M3.5 6.5h17v11h-17z M3.5 7l8.5 6.5L20.5 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
-                    </svg>
-                    {about.email}
-                  </a>
-                )}
-                {about.resume && (
-                  <a class="button resume" href={`${about.resume}?dl=`} download>
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M12 4v11m-5-5 5 5 5-5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                    R&eacute;sum&eacute;
-                  </a>
-                )}
-              </p>
-            )}
           </section>
         )
       }
@@ -155,12 +157,13 @@ const person = {
     translate: calc(50% - var(--fx)) 0;
   }
 
-  /* White arch behind the cut-out, its top at the hotspot's height */
+  /* White arch behind the cut-out, its top at the hotspot's height. It can stop short of the
+     bottom so a foot steps out past its edge; it runs a pixel lower than the cut so no sliver shows */
   .is-cutout::before {
     content: '';
     position: absolute;
     top: var(--fy);
-    bottom: 0;
+    bottom: calc(var(--fb) - 1px);
     left: calc(var(--fx) - 44%);
     width: 88%;
     background: var(--paper);
@@ -268,6 +271,14 @@ const person = {
     background: var(--paper);
   }
 
+  .contact-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+  }
+
   .contact-text :global(p) {
     margin: 0.8em 0 0;
     font-size: clamp(1rem, 0.95rem + 0.2vw, 1.1rem);
@@ -278,41 +289,38 @@ const person = {
   .actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.6rem;
-    margin: 1.25rem 0 0;
+    gap: 0.5rem;
+    margin: 0;
   }
 
   .button {
     display: inline-flex;
     align-items: center;
     gap: 0.55em;
-    min-height: 2.9rem;
-    padding: 0.6em 1.3em;
+    min-height: 2.2rem;
+    padding: 0.3em 1em;
     border: 2px solid var(--cocoa);
     border-radius: 999px;
+    background: var(--paper);
+    color: var(--cocoa);
     font-weight: 600;
     text-decoration: none;
-    transition:
-      background-color 150ms,
-      color 150ms,
-      border-color 150ms;
+    transition: background-color 150ms;
   }
 
   .button svg {
     flex: none;
-    width: 1.25em;
-    height: 1.25em;
+    width: 1.2em;
+    height: 1.2em;
   }
 
   .email {
-    background: var(--cocoa);
-    color: var(--paper);
-    font-size: clamp(0.95rem, 0.9rem + 0.2vw, 1.05rem);
+    font-size: 0.92rem;
     overflow-wrap: anywhere;
   }
 
   .resume {
-    font-size: 0.8rem;
+    font-size: 0.72rem;
     letter-spacing: 0.16em;
     text-transform: uppercase;
   }
@@ -320,8 +328,6 @@ const person = {
   .button:hover,
   .button:focus-visible {
     background: var(--sun);
-    border-color: var(--sun);
-    color: var(--cocoa);
   }
 
   .button:focus-visible,
@@ -349,6 +355,10 @@ const person = {
     .is-cutout {
       height: calc(var(--width) / var(--ratio) * 0.66);
       clip-path: inset(-100vmax -100vmax 0 -100vmax);
+    }
+
+    .is-cutout::before {
+      bottom: 0;
     }
 
     .text {
