@@ -38,6 +38,10 @@ export default defineConfig({
                     S.view.form().title('Order and intro'),
                   ]),
               ),
+            S.listItem()
+              .title('Page not found')
+              .id('notFoundPage')
+              .child(S.document().schemaType('notFoundPage').documentId('notFoundPage')),
             S.divider(),
             S.documentTypeListItem('project').title('Projects'),
             S.documentTypeListItem('artwork').title('Artwork'),

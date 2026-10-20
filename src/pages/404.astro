@@ -1,0 +1,300 @@
+---
+import Page from '../layouts/Page.astro'
+import {getSite, sanity, urlFor, type SanityImage} from '../lib/sanity'
+
+interface Art {
+  title: string
+  image: SanityImage
+  dimensions: {width: number; height: number}
+  lqip?: string
+  project?: {title: string; slug: string}
+}
+
+const artFields = `title, image, "dimensions": image.asset->metadata.dimensions, "lqip": image.asset->metadata.lqip,
+  "project": *[_type == "project" && defined(slug.current) && references(^._id) && !(_id in path("drafts.**"))][0]{title, "slug": slug.current}`
+
+// The piece picked in the Studio, else the first one in the landing slideshow
+const [site, page] = await Promise.all([
+  getSite(),
+  sanity.fetch<{heading?: string; message?: string; art?: Art | null; fallback?: Art | null} | null>(`{
+    ...*[_id == "notFoundPage"][0]{heading, message, "art": select(defined(art->image.asset) => art->{${artFields}})},
+    "fallback": coalesce(
+      *[_id == "landingPage"][0].slides[defined(@->image.asset) && @->showOnLanding == true][0]->{${artFields}},
+      *[_type == "artwork" && showOnLanding == true && defined(image.asset) && !(_id in path("drafts.**"))]
+        | order(year desc, _createdAt desc)[0]{${artFields}}
+    )
+  }`),
+])
+
+const heading = page?.heading || 'You’ve wandered off the path'
+const message = page?.message || 'The page you’re looking for isn’t here. It may have moved, or the link may have a typo.'
+const art = page?.art ?? page?.fallback
+
+const picture = art && (() => {
+  const {width, height} = art.dimensions
+  const ratio = (width / height).toFixed(4)
+  // The whole piece, as in the galleries; the original's own width is always the last option
+  const src = (w: number) => urlFor(art.image.asset).width(w).quality(90).auto('format').url()
+  const widths = [400, 640, 900, 1200, 1600, 2000, 2600, 3200, 4000].filter((w) => w < width * 0.95)
+  return {
+    width,
+    height,
+    src: src(Math.min(1200, width)),
+    srcset: [...widths, width].map((w) => `${src(w)} ${w}w`).join(', '),
+    // Matches the CSS below: as wide as its column, unless the window's height limits it first
+    sizes: `(min-width: 900px) min(100vw - 30rem, 800px, (100vh - 17rem) * ${ratio}), min(100vw - 24px, 50vh * ${ratio})`,
+    style: `--ratio: ${ratio};${art.lqip ? ` background-image: url(${art.lqip});` : ''}`,
+    href: art.project && `/projects/${art.project.slug}`,
+  }
+})()
+
+const links = [
+  {label: 'Home', href: '/'},
+  {label: 'Projects', href: '/projects'},
+  {label: 'Portfolio', href: '/portfolio'},
+]
+---
+
+<Page title={`Page not found | ${site.name}`} site={site} description={message}>
+  <section class:list={['lost', {'has-art': picture}]}>
+    <div class="text">
+      <p class="eyebrow">404 &middot; Page not found</p>
+      <h1>{heading}</h1>
+      <p class="message">{message}</p>
+      <ul class="actions">
+        {
+          links.map((link) => (
+            <li>
+              <a class="button" href={link.href}>
+                {link.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+
+    {
+      art && picture && (
+        <figure class="art">
+          {picture.href ? (
+            <a href={picture.href} tabindex="-1" aria-hidden="true">
+              <img src={picture.src} srcset={picture.srcset} sizes={picture.sizes} alt="" width={picture.width} height={picture.height} style={picture.style} decoding="async" />
+            </a>
+          ) : (
+            <img
+              src={picture.src}
+              srcset={picture.srcset}
+              sizes={picture.sizes}
+              alt={art.image.alt ?? art.title}
+              width={picture.width}
+              height={picture.height}
+              style={picture.style}
+              decoding="async"
+            />
+          )}
+          <figcaption>
+            {picture.href ? (
+              <a href={picture.href} aria-label={`${art.title}, from ${art.project!.title}`}>
+                <span>{art.title}</span>
+                <span class="project">
+                  {art.project!.title}
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 12h13m-5-5 5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </span>
+              </a>
+            ) : (
+              <span>{art.title}</span>
+            )}
+          </figcaption>
+        </figure>
+      )
+    }
+  </section>
+</Page>
+
+<style>
+  .lost {
+    display: grid;
+    gap: clamp(2rem, 5vw, 5.5rem);
+    align-items: center;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: clamp(0.5rem, 3vw, 2rem) 0 0;
+    color: var(--cocoa);
+  }
+
+  .lost:not(.has-art) {
+    justify-items: center;
+    text-align: center;
+  }
+
+  @media (min-width: 900px) {
+    .lost {
+      /* Roughly the space left between the header and the footer, so the piece sits mid-window */
+      min-height: calc(100svh - 16rem);
+    }
+
+    .has-art {
+      grid-template-columns: minmax(18rem, 26rem) minmax(0, 1fr);
+    }
+  }
+
+  /* Text */
+
+  .eyebrow {
+    margin: 0 0 clamp(0.9rem, 1.6vw, 1.25rem);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    margin: 0;
+    max-width: 14em;
+    font-size: clamp(1.75rem, 1.1rem + 2vw, 2.75rem);
+    font-weight: 450;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+
+  .message {
+    margin: 1rem 0 0;
+    max-width: 30em;
+    font-size: clamp(1.02rem, 0.95rem + 0.25vw, 1.15rem);
+    line-height: 1.7;
+    text-wrap: pretty;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin: clamp(1.5rem, 3vw, 2rem) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .lost:not(.has-art) .actions {
+    justify-content: center;
+  }
+
+  .button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0.3em 1.4em 0.3em 1.56em;
+    border: 2px solid var(--cocoa);
+    border-radius: 999px;
+    background: var(--paper);
+    color: var(--cocoa);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: background-color 150ms;
+  }
+
+  .button:hover,
+  .button:focus-visible {
+    background: var(--sun);
+  }
+
+  /* The piece */
+
+  .art {
+    display: grid;
+    justify-items: center;
+    gap: 0.9rem;
+    margin: 0;
+  }
+
+  /* The link only makes the picture clickable; the caption's link is the one people tab to */
+  .art > a {
+    display: contents;
+  }
+
+  .art img {
+    display: block;
+    width: min(100%, calc((100svh - 17rem) * var(--ratio)));
+    height: auto;
+    border: clamp(8px, 1vw, 14px) solid var(--paper);
+    background: var(--paper) center / cover no-repeat;
+  }
+
+  figcaption {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  figcaption a {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.2rem 0.9rem;
+    padding: 0.4em 0.2em;
+    text-decoration: none;
+  }
+
+  .project {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    color: var(--cocoa-soft);
+    background: linear-gradient(currentColor, currentColor) no-repeat 0 100% / 0 2px;
+    transition: background-size 200ms ease-out;
+  }
+
+  .project svg {
+    width: 1.35em;
+    height: 1.35em;
+    transition: translate 200ms ease-out;
+  }
+
+  figcaption a:hover .project,
+  figcaption a:focus-visible .project {
+    background-size: 100% 2px;
+  }
+
+  figcaption a:hover svg,
+  figcaption a:focus-visible svg {
+    translate: 0.2em 0;
+  }
+
+  a:focus-visible {
+    outline: 2px solid var(--cocoa);
+    outline-offset: 3px;
+  }
+
+  /* Phones and narrow windows: the message and buttons first, the piece under them */
+  @media (max-width: 899px) {
+    .lost {
+      justify-items: center;
+      text-align: center;
+    }
+
+    .text {
+      display: grid;
+      justify-items: center;
+    }
+
+    .actions {
+      justify-content: center;
+    }
+
+    .art {
+      width: 100%;
+    }
+
+    .art img {
+      width: min(100%, calc(50svh * var(--ratio)));
+    }
+  }
+</style>
