@@ -5,7 +5,7 @@ Portfolio site for a professional digital artist.
 ## Stack
 
 - **Astro** (static output) for the site
-- **Vercel** for hosting, deployed from GitHub on every push
+- **Vercel** for hosting (Cordelia's account), deployed from GitHub on every push to `main`
 - **Sanity** as the content manager and image host: Cordelia uploads full-resolution originals and fills in title, year, medium and description in Sanity Studio. The site requests sized AVIF/WebP versions from Sanity's image CDN for thumbnails and gallery views, with a link to the full-quality original. No separate database.
 
 ## Folders
