@@ -587,7 +587,7 @@ const items = pieces.map((piece) => {
     // A mouse pans by where it sits in the window, so the whole piece is reachable without dragging
     const glide = (clientX: number, clientY: number) => {
       const {w, h} = natural(pieces[index])
-      return {x: (-(w - innerWidth) * clientX) / innerWidth, y: (-(h - innerHeight) * clientY) / innerHeight}
+      return {x: (-(w * scale - innerWidth) * clientX) / innerWidth, y: (-(h * scale - innerHeight) * clientY) / innerHeight}
     }
 
     function zoomAt(clientX: number, clientY: number, pointerType: string) {
@@ -737,6 +737,25 @@ const items = pieces.map((piece) => {
       release(event)
       down = null
     })
+
+    // Desktop: the scroll wheel (or a trackpad pinch) zooms between fitting the window and full
+    // resolution, never smaller than where it started
+    stage.addEventListener(
+      'wheel',
+      (event) => {
+        if (!(media instanceof HTMLImageElement)) return
+        event.preventDefault()
+        // Trackpad pinches arrive as small wheel steps with ctrl held
+        const step = event.ctrlKey ? 0.012 : 0.0018
+        const delta = event.deltaMode === 1 ? event.deltaY * 33 : event.deltaY
+        zoomTo(currentScale() * Math.exp(-delta * step), event.clientX, event.clientY)
+        if (zoomed) {
+          pan = glide(event.clientX, event.clientY)
+          clampPan()
+        }
+      },
+      {passive: false},
+    )
 
     prevButton.addEventListener('click', () => show(index - 1))
     nextButton.addEventListener('click', () => show(index + 1))
