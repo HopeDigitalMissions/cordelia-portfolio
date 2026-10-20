@@ -31,6 +31,7 @@ interface LandingPage {
   slides?: Artwork[]
   extras?: Artwork[]
   socials?: Socials
+  character?: {alt?: string; asset: {_ref: string}; dimensions: {width: number; height: number}}
 }
 
 const artworkFields = `_id, title, year, image, landingFit, landingMotion, landingPan, landingMoveOnWide, "dimensions": image.asset->metadata.dimensions, "lqip": image.asset->metadata.lqip`
@@ -38,6 +39,7 @@ const artworkFields = `_id, title, year, image, landingFit, landingMotion, landi
 const page = await sanity.fetch<LandingPage | null>(`
   *[_id == "landingPage"][0]{
     eyebrow, name, slideSeconds, panSpeed, transition, socials,
+    "character": character{alt, asset, "dimensions": asset->metadata.dimensions},
     "slides": slides[@->showOnLanding == true && defined(@->image.asset)]->{${artworkFields}},
     "extras": *[_type == "artwork" && showOnLanding == true && defined(image.asset)
       && !(_id in ^.slides[]._ref) && !(_id in path("drafts.**"))] | order(year desc, _createdAt desc){${artworkFields}}
@@ -89,6 +91,22 @@ const slides: Slide[] = artworks.map(({image, dimensions, title, lqip, landingFi
   }
 })
 
+// Her character art beside the name card (computers only); sized for the card at up to 2x density
+const character = page?.character?.asset
+  ? (() => {
+      const {width, height} = page.character!.dimensions
+      const src = (w: number) => urlFor(page.character!).width(w).quality(90).auto('format').url()
+      const steps = [...[500, 800, 1100, 1400].filter((w) => w < width * 0.95), width]
+      return {
+        src: src(Math.min(800, width)),
+        srcset: steps.map((w) => `${src(w)} ${w}w`).join(', '),
+        width,
+        height,
+        alt: page.character!.alt ?? '',
+      }
+    })()
+  : undefined
+
 const name = page?.name ?? 'Cordelia Moore'
 const eyebrow = page?.eyebrow ?? 'Illustrator & Concept Artist'
 ---
@@ -103,5 +121,6 @@ const eyebrow = page?.eyebrow ?? 'Illustrator & Concept Artist'
     panSpeed={page?.panSpeed ?? 28}
     transition={page?.transition ?? 'fade'}
     socials={page?.socials ?? {}}
+    character={character}
   />
 </Base>

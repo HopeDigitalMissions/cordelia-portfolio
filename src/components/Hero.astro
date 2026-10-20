@@ -30,9 +30,10 @@ interface Props {
   panSpeed: number
   transition: 'fade' | 'dip'
   socials: Socials
+  character?: {src: string; srcset: string; width: number; height: number; alt: string}
 }
 
-const {slides, name, eyebrow, seconds, panSpeed, transition, socials} = Astro.props
+const {slides, name, eyebrow, seconds, panSpeed, transition, socials, character} = Astro.props
 ---
 
 <main class="hero" data-seconds={seconds} data-pan-speed={panSpeed} data-transition={transition}>
@@ -70,6 +71,20 @@ const {slides, name, eyebrow, seconds, panSpeed, transition, socials} = Astro.pr
   </div>
 
   <div class="card">
+    {
+      character && (
+        <img
+          class="character"
+          src={character.src}
+          srcset={character.srcset}
+          sizes="(min-width: 1100px) 600px, 1px"
+          width={character.width}
+          height={character.height}
+          alt={character.alt}
+          decoding="async"
+        />
+      )
+    }
     <p class="eyebrow">{eyebrow}</p>
     <h1 class="name">
       <span class="visually-hidden">{name}</span>
@@ -198,6 +213,30 @@ const {slides, name, eyebrow, seconds, panSpeed, transition, socials} = Astro.pr
     background: var(--paper);
     text-align: center;
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  }
+
+  /* Her character stands over the card's right side, behind its text, with a soft white glow */
+  .card > :not(.character) {
+    position: relative;
+    z-index: 1;
+  }
+
+  .character {
+    position: absolute;
+    left: 61%;
+    top: -33%;
+    z-index: 0;
+    width: auto;
+    height: 168%;
+    pointer-events: none;
+    filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 7px #fff);
+  }
+
+  /* Computers only: on phones and narrow windows the card has no room for her */
+  @media (max-width: 1099px), (max-aspect-ratio: 1/1), (max-height: 520px) {
+    .character {
+      display: none;
+    }
   }
 
   .eyebrow {

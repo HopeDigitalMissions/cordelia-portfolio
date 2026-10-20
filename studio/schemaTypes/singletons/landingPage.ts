@@ -23,6 +23,14 @@ export const landingPage = defineType({
       validation: (rule) => rule.required(),
     }),
     defineField({
+      name: 'character',
+      title: 'Character art',
+      type: 'image',
+      description:
+        'A transparent PNG of you, shown standing over the right side of the name card on computers (not on phones). Leave empty to hide it.',
+      fields: [defineField({name: 'alt', title: 'Alternative text', type: 'string'})],
+    }),
+    defineField({
       name: 'socials',
       title: 'Social links',
       type: 'object',
