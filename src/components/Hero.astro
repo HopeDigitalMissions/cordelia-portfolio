@@ -1,0 +1,339 @@
+---
+export interface Slide {
+  src: string
+  srcset: string
+  sizes: string
+  alt: string
+  width: number
+  height: number
+  position: string
+  placeholder?: string
+  backdrop: string
+  fit: 'auto' | 'fill' | 'whole'
+}
+
+interface Props {
+  slides: Slide[]
+  name: string
+  eyebrow: string
+  seconds: number
+  transition: 'fade' | 'dip'
+}
+
+const {slides, name, eyebrow, seconds, transition} = Astro.props
+
+const nav = [
+  {label: 'Portfolio', href: '/portfolio'},
+  {label: 'About', href: '/about'},
+  {label: 'Projects', href: '/projects'},
+]
+---
+
+<main class="hero" data-seconds={seconds} data-transition={transition}>
+  <div class="stage">
+    {
+      slides.map((slide, i) => (
+        <figure
+          class:list={['slide', {'is-active': i === 0}]}
+          data-fit={slide.fit}
+          data-aspect={slide.width / slide.height}
+          data-backdrop={slide.backdrop}
+          style={`--position: ${slide.position};`}
+          aria-hidden={i === 0 ? undefined : 'true'}
+        >
+          <img
+            src={i === 0 ? slide.src : undefined}
+            srcset={i === 0 ? slide.srcset : undefined}
+            data-src={slide.src}
+            data-srcset={slide.srcset}
+            sizes={slide.sizes}
+            alt={slide.alt}
+            width={slide.width}
+            height={slide.height}
+            style={i === 0 && slide.placeholder ? `background-image: url(${slide.placeholder});` : undefined}
+            fetchpriority={i === 0 ? 'high' : undefined}
+            decoding="async"
+          />
+        </figure>
+      ))
+    }
+    <div class="dip" aria-hidden="true"></div>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">{eyebrow}</p>
+    <h1 class="name">{name}</h1>
+    <nav aria-label="Main">
+      <ul>
+        {nav.map((item) => <li><a href={item.href}>{item.label}</a></li>)}
+      </ul>
+    </nav>
+  </div>
+</main>
+
+<style>
+  .hero {
+    --frame: clamp(12px, 2.2vw, 30px);
+    position: relative;
+    height: 100vh;
+    height: 100dvh;
+    padding: var(--frame);
+    background: var(--sun);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+
+  .stage {
+    position: absolute;
+    inset: var(--frame);
+    overflow: hidden;
+    background: var(--paper);
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    z-index: 0;
+    background: center / cover no-repeat;
+    background-image: var(--backdrop, none);
+  }
+
+  .slide img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: var(--position);
+    background: var(--position) / cover no-repeat;
+  }
+
+  /* Tall piece on a wide screen, or wide piece on a phone: show all of it over a blur of itself */
+  .slide.is-whole img {
+    object-fit: contain;
+    object-position: 50% 50%;
+    background: none;
+    filter: drop-shadow(0 0 24px rgb(0 0 0 / 0.25));
+  }
+
+  .slide.is-active {
+    opacity: 1;
+    z-index: 1;
+  }
+
+  .slide.is-entering {
+    z-index: 2;
+    animation: fade-in var(--fade, 450ms) ease-out forwards;
+  }
+
+  .dip {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    background: var(--paper);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease-in;
+  }
+
+  .dip.is-on {
+    opacity: 1;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .card {
+    position: relative;
+    z-index: 4;
+    width: min(760px, 100% - 2rem);
+    padding: clamp(1.75rem, 4.5vw, 3.25rem) clamp(1.25rem, 4vw, 3rem);
+    background: var(--paper);
+    text-align: center;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  }
+
+  .eyebrow {
+    margin: 0 0 0.9em;
+    font-size: clamp(0.72rem, 0.6rem + 0.55vw, 0.95rem);
+    font-weight: 500;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--honey);
+  }
+
+  .name {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.9rem, 1rem + 4.4vw, 3.6rem);
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink);
+    /* Letter spacing adds a trailing gap; pull it back so the name centers */
+    margin-right: -0.14em;
+  }
+
+  nav ul {
+    list-style: none;
+    margin: clamp(1.5rem, 3.5vw, 2.5rem) 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.25rem clamp(1rem, 3vw, 2.25rem);
+  }
+
+  nav a {
+    display: inline-block;
+    padding: 0.6em 0.2em;
+    font-size: clamp(0.8rem, 0.7rem + 0.4vw, 0.95rem);
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--ink-soft);
+    background: linear-gradient(var(--sun), var(--sun)) no-repeat 50% calc(100% - 0.35em) / 0 2px;
+    transition:
+      color 150ms,
+      background-size 200ms ease-out;
+  }
+
+  nav a:hover,
+  nav a:focus-visible {
+    color: var(--ink);
+    background-size: calc(100% - 0.2em) 2px;
+  }
+
+  nav a:focus-visible {
+    outline: 2px solid var(--sun-deep);
+    outline-offset: 2px;
+  }
+
+  /* Phones held upright: the card moves to the bottom so the art keeps the top of the screen */
+  @media (max-aspect-ratio: 4/5) {
+    .hero {
+      place-items: end center;
+      padding-bottom: calc(var(--frame) + 0.75rem + env(safe-area-inset-bottom));
+    }
+
+    .slide.is-whole img {
+      object-position: 50% 30%;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .card {
+      width: calc(100% - 1.5rem);
+      padding: 1.5rem 1rem 1rem;
+    }
+
+    .eyebrow {
+      font-size: 0.68rem;
+      letter-spacing: 0.2em;
+    }
+
+    .name {
+      font-size: 7.2vw;
+      letter-spacing: 0.08em;
+      margin-right: -0.08em;
+    }
+
+    nav ul {
+      margin-top: 0.9rem;
+    }
+  }
+</style>
+
+<script>
+  const hero = document.querySelector<HTMLElement>('.hero')!
+  const stage = hero.querySelector<HTMLElement>('.stage')!
+  const slides = [...hero.querySelectorAll<HTMLElement>('.slide')]
+  const dip = hero.querySelector<HTMLElement>('.dip')!
+  const seconds = Number(hero.dataset.seconds) || 5
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
+  const transition = reducedMotion ? 'fade' : hero.dataset.transition
+
+  // Below this share of the piece left visible after cropping, show it whole instead
+  const MIN_VISIBLE = 0.55
+
+  function fit() {
+    const screen = stage.clientWidth / stage.clientHeight
+    for (const slide of slides) {
+      const aspect = Number(slide.dataset.aspect)
+      const visible = Math.min(screen / aspect, aspect / screen)
+      const mode = slide.dataset.fit
+      const whole = mode === 'whole' || (mode === 'auto' && visible < MIN_VISIBLE)
+      slide.classList.toggle('is-whole', whole)
+      if (whole && !slide.style.getPropertyValue('--backdrop')) {
+        slide.style.setProperty('--backdrop', `url(${slide.dataset.backdrop})`)
+      }
+    }
+  }
+
+  fit()
+  new ResizeObserver(fit).observe(stage)
+
+  let current = 0
+  let timer: number | undefined
+
+  const load = (slide: HTMLElement) => {
+    const img = slide.querySelector('img')!
+    if (!img.srcset && img.dataset.srcset) {
+      img.srcset = img.dataset.srcset
+      img.src = img.dataset.src!
+    }
+    return img.decode().catch(() => {})
+  }
+
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+  async function show(next: number) {
+    const from = slides[current]
+    const to = slides[next]
+    await load(to)
+
+    if (transition === 'dip') {
+      dip.classList.add('is-on')
+      await wait(170)
+      from.classList.remove('is-active')
+      to.classList.add('is-active')
+      dip.classList.remove('is-on')
+    } else {
+      to.classList.add('is-active', 'is-entering')
+      await new Promise((resolve) => to.addEventListener('animationend', resolve, {once: true}))
+      to.classList.remove('is-entering')
+      from.classList.remove('is-active')
+    }
+
+    current = next
+    // Warm up the one after this so it is ready when its turn comes
+    load(slides[(current + 1) % slides.length])
+  }
+
+  function schedule() {
+    clearTimeout(timer)
+    timer = window.setTimeout(async () => {
+      await show((current + 1) % slides.length)
+      schedule()
+    }, seconds * 1000)
+  }
+
+  if (slides.length > 1) {
+    load(slides[1])
+    schedule()
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) clearTimeout(timer)
+      else schedule()
+    })
+  }
+</script>

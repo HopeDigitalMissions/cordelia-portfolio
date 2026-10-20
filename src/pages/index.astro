@@ -1,16 +1,84 @@
 ---
+import Base from '../layouts/Base.astro'
+import Hero, {type Slide} from '../components/Hero.astro'
+import {sanity, urlFor} from '../lib/sanity'
+
+interface Artwork {
+  _id: string
+  title: string
+  year?: number
+  image: {
+    alt?: string
+    asset: {_ref: string}
+    hotspot?: {x: number; y: number}
+    crop?: {top: number; bottom: number; left: number; right: number}
+  }
+  dimensions: {width: number; height: number}
+  lqip?: string
+  landingFit?: 'auto' | 'fill' | 'whole'
+}
+
+interface LandingPage {
+  eyebrow?: string
+  name?: string
+  slideSeconds?: number
+  transition?: 'fade' | 'dip'
+  slides?: Artwork[]
+  extras?: Artwork[]
+}
+
+const artworkFields = `_id, title, year, image, landingFit, "dimensions": image.asset->metadata.dimensions, "lqip": image.asset->metadata.lqip`
+
+const page = await sanity.fetch<LandingPage | null>(`
+  *[_id == "landingPage"][0]{
+    eyebrow, name, slideSeconds, transition,
+    "slides": slides[@->showOnLanding == true && defined(@->image.asset)]->{${artworkFields}},
+    "extras": *[_type == "artwork" && showOnLanding == true && defined(image.asset)
+      && !(_id in ^.slides[]._ref) && !(_id in path("drafts.**"))] | order(year desc, _createdAt desc){${artworkFields}}
+  }
+`)
+
+const artworks = [...(page?.slides ?? []), ...(page?.extras ?? [])]
+
+const widths = [640, 960, 1280, 1600, 2000, 2560, 3200, 3840]
+
+const slides: Slide[] = artworks.map(({image, dimensions, title, lqip, landingFit}) => {
+  const crop = image.crop ?? {top: 0, bottom: 0, left: 0, right: 0}
+  const hotspot = image.hotspot ?? {x: 0.5, y: 0.5}
+  // The hotspot is measured on the uncropped image, so shift it into the cropped frame
+  const posX = (hotspot.x - crop.left) / (1 - crop.left - crop.right)
+  const posY = (hotspot.y - crop.top) / (1 - crop.top - crop.bottom)
+  const width = Math.round(dimensions.width * (1 - crop.left - crop.right))
+  const height = Math.round(dimensions.height * (1 - crop.top - crop.bottom))
+  const aspect = width / height
+  const usable = widths.filter((w) => w <= width)
+  const src = (w: number) => urlFor(image).width(w).quality(82).auto('format').url()
+  return {
+    src: src(Math.min(1920, width)),
+    srcset: (usable.length ? usable : [width]).map((w) => `${src(w)} ${w}w`).join(', '),
+    // The frame is cover-cropped, so a wide piece on a tall screen needs pixels for the full height
+    sizes: `(min-aspect-ratio: ${width}/${height}) 100vw, ${Math.ceil(100 * aspect)}vh`,
+    alt: image.alt ?? title,
+    width,
+    height,
+    position: `${(Math.min(Math.max(posX, 0), 1) * 100).toFixed(1)}% ${(Math.min(Math.max(posY, 0), 1) * 100).toFixed(1)}%`,
+    placeholder: lqip,
+    backdrop: urlFor(image).width(400).blur(40).quality(60).auto('format').url(),
+    fit: landingFit ?? 'auto',
+  }
+})
+
+const name = page?.name ?? 'Cordelia Moore'
+const eyebrow = page?.eyebrow ?? 'Illustrator & Concept Artist'
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Base title={`${name} | ${eyebrow}`}>
+  {slides[0] && <link slot="head" rel="preload" as="image" imagesrcset={slides[0].srcset} imagesizes={slides[0].sizes} fetchpriority="high" />}
+  <Hero
+    slides={slides}
+    name={name}
+    eyebrow={eyebrow}
+    seconds={page?.slideSeconds ?? 5}
+    transition={page?.transition ?? 'fade'}
+  />
+</Base>

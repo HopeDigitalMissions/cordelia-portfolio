@@ -56,10 +56,30 @@ export const artwork = defineType({
       options: {layout: 'tags'},
     }),
     defineField({
-      name: 'featured',
+      name: 'showOnLanding',
+      title: 'Include on landing page',
       type: 'boolean',
-      description: 'Show this piece on the home page.',
+      description:
+        'Adds this piece to the full-screen slideshow on the home page. Set the order under Landing page. Drag the circle on the image (Edit hotspot) to choose which part stays in view when the screen crops it.',
       initialValue: false,
+    }),
+    defineField({
+      name: 'landingFit',
+      title: 'Landing page fit',
+      type: 'string',
+      description:
+        'Automatic fills the screen when the piece and the screen are a similar shape, and shows the whole piece over a soft blur of itself when they are not (a tall piece on a wide monitor, a wide piece on a phone).',
+      initialValue: 'auto',
+      options: {
+        layout: 'radio',
+        direction: 'horizontal',
+        list: [
+          {title: 'Automatic', value: 'auto'},
+          {title: 'Always fill the screen', value: 'fill'},
+          {title: 'Always show the whole piece', value: 'whole'},
+        ],
+      },
+      hidden: ({document}) => !document?.showOnLanding,
     }),
   ],
   orderings: [
