@@ -12,7 +12,7 @@ interface Props {
 
 const {socials, class: className} = Astro.props
 
-// Instagram and LinkedIn glyphs from Bootstrap Icons (MIT); Cara's is the C from its wordmark.
+// Instagram and LinkedIn glyphs from Bootstrap Icons (MIT); Cara's is from its official logo.
 // Each viewBox is square so the glyphs scale evenly.
 const icons = {
   instagram: {
@@ -22,8 +22,10 @@ const icons = {
   },
   cara: {
     label: 'Cara',
-    viewBox: '-0.6 0 28 28',
-    d: 'M25.376 9.984h-5.599a5.477 5.477 0 0 0-.626-1.93 4.912 4.912 0 0 0-1.215-1.457 5.345 5.345 0 0 0-1.713-.92 6.552 6.552 0 0 0-2.084-.32c-1.355 0-2.535.336-3.541 1.01-1.006.664-1.786 1.636-2.34 2.914-.553 1.27-.83 2.813-.83 4.628 0 1.867.277 3.435.83 4.705.563 1.27 1.347 2.228 2.353 2.876 1.005.648 2.169.972 3.49.972.741 0 1.427-.098 2.058-.294a5.409 5.409 0 0 0 1.7-.857 4.934 4.934 0 0 0 1.228-1.393 5.43 5.43 0 0 0 .69-1.867l5.6.026a10.131 10.131 0 0 1-1.087 3.477 10.452 10.452 0 0 1-2.314 2.979c-.963.869-2.114 1.56-3.452 2.07-1.33.503-2.834.755-4.513.755-2.335 0-4.423-.528-6.264-1.585-1.832-1.057-3.281-2.587-4.346-4.59-1.057-2.003-1.586-4.427-1.586-7.274 0-2.855.537-5.284 1.611-7.287C4.5 4.62 5.957 3.094 7.798 2.045 9.64.99 11.71.46 14.011.46c1.517 0 2.924.213 4.22.64a10.697 10.697 0 0 1 3.464 1.866 9.6 9.6 0 0 1 2.454 2.979c.64 1.176 1.048 2.522 1.227 4.04Z',
+    // Cara's official mark is this C inside a circle, so it keeps its own proportions
+    viewBox: '0 0 200 200',
+    fullCircle: true,
+    d: 'M131.544 80.5368L148.434 57.8122C121.609 36.5266 80.6364 37.8603 57.0492 64.4295C49.232 73.2351 44.2061 84.7227 43.6259 98.6576C42.8187 118.045 51.5272 136 65.1029 145.638C90.7819 163.867 125.354 159.468 149.997 142.187L134.899 118.121C116.778 132.215 83.5069 130.872 81.2077 102.684C78.9084 74.4967 110.067 66.4429 131.544 80.5368Z',
   },
   linkedin: {
     label: 'LinkedIn',
@@ -35,14 +37,15 @@ const icons = {
 const links = (Object.keys(icons) as (keyof typeof icons)[])
   .filter((key) => socials[key])
   .map((key) => {
-    // Fit each glyph into an 18-unit square in the middle of a 40-unit circle
-    const [minX, minY, size] = icons[key].viewBox.split(' ').map(Number)
-    return {
-      ...icons[key],
-      key,
-      href: socials[key]!,
-      transform: `translate(11 11) scale(${18 / size}) translate(${-minX} ${-minY})`,
-    }
+    // Fit each glyph into an 18-unit square in the middle of a 40-unit circle,
+    // unless it is already drawn inside its own circle
+    const icon = icons[key]
+    const [minX, minY, size] = icon.viewBox.split(' ').map(Number)
+    const transform =
+      'fullCircle' in icon
+        ? `scale(${40 / size}) translate(${-minX} ${-minY})`
+        : `translate(11 11) scale(${18 / size}) translate(${-minX} ${-minY})`
+    return {...icon, key, href: socials[key]!, transform}
   })
 ---
 

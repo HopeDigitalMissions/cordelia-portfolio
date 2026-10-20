@@ -36,3 +36,6 @@ artwork-originals/*
 
 # licensed font files stay local, never in the public repo
 font-sources/
+
+# design assets waiting to be used
+assets-incoming/
