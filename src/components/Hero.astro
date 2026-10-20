@@ -429,7 +429,7 @@ const {slides, name, eyebrow, seconds, panSpeed, transition, socials} = Astro.pr
         {transform: `translate(${pan.from[0]}px, ${pan.from[1]}px)`},
         {transform: `translate(${pan.to[0]}px, ${pan.to[1]}px)`},
       ],
-      {duration: pan.duration, easing: 'linear', fill: 'forwards'},
+      {duration: pan.duration, easing: 'ease-in-out', fill: 'forwards'},
     )
   }
 
