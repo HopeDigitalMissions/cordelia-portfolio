@@ -109,7 +109,7 @@ export const artwork = defineType({
       title: 'Landing page motion',
       type: 'string',
       description:
-        'How the view drifts while this piece is on screen and cropped. Automatic pans wide pieces on phones toward the side with more of the piece.',
+        'Phones only: how the view drifts so visitors see more of a piece that is cropped to fit the tall screen. Automatic pans toward the side with more of the piece. Computers always show the piece still.',
       initialValue: 'auto',
       options: {
         layout: 'radio',
@@ -127,7 +127,7 @@ export const artwork = defineType({
       title: 'Pan path',
       type: 'object',
       description:
-        'Starts at the point you click and glides to the hotspot, at the Pan speed set on the Landing page. The piece stays on screen until it arrives. Works on any screen where the piece is cropped; to pan down a tall piece on computers too, set Landing page fit to Always fill the screen.',
+        'Starts at the point you click and glides to the hotspot, at the Pan speed set on the Landing page. The piece stays on screen until it arrives. Phones only.',
       fields: [
         defineField({name: 'x', type: 'number'}),
         defineField({name: 'y', type: 'number'}),
