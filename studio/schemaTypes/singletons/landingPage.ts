@@ -32,6 +32,7 @@ export const landingPage = defineType({
         defineField({name: 'instagram', title: 'Instagram', type: 'url'}),
         defineField({name: 'cara', title: 'Cara', type: 'url'}),
         defineField({name: 'linkedin', title: 'LinkedIn', type: 'url'}),
+        defineField({name: 'artstation', title: 'ArtStation', type: 'url'}),
       ],
     }),
     defineField({

@@ -22,7 +22,7 @@ export interface SanityImage {
 export interface Site {
   name: string
   eyebrow: string
-  socials: {instagram?: string; cara?: string; linkedin?: string}
+  socials: {instagram?: string; cara?: string; linkedin?: string; artstation?: string}
 }
 
 export async function getSite(): Promise<Site> {
