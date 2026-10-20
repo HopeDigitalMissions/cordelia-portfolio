@@ -81,6 +81,13 @@ const items = pieces.map((piece) => {
       <path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
     </svg>
   </button>
+  <span class="zoom-tip" aria-hidden="true" data-zoom-tip>
+    <svg viewBox="0 0 16 24" aria-hidden="true">
+      <rect x="1.5" y="1.5" width="13" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6" />
+      <path d="M8 5.5v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+    </svg>
+    Scroll to zoom
+  </span>
   <p class="viewer-hint" hidden data-hint>
     Pinch to zoom{pieces.length > 1 && <span class="viewer-hint-more"> · Swipe for more</span>}
   </p>
@@ -340,6 +347,39 @@ const items = pieces.map((piece) => {
   .viewer:has(.is-zoomed) .viewer-project {
     opacity: 0;
     pointer-events: none;
+  }
+
+  /* Computers: a small label beside the magnifier cursor until the visitor has zoomed once */
+  .zoom-tip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.7rem 0.4rem 0.55rem;
+    border-radius: 999px;
+    background: var(--paper);
+    color: var(--cocoa);
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.2);
+    font-size: 0.66rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 150ms;
+  }
+
+  .zoom-tip.is-on {
+    opacity: 1;
+  }
+
+  .zoom-tip svg {
+    width: 0.6rem;
+    height: 0.9rem;
   }
 
   /* Phones: a quiet line under the piece explaining the gestures */
@@ -605,6 +645,8 @@ const items = pieces.map((piece) => {
             }
       scale = 1
       zoomed = true
+      zoomLearned = true
+      zoomTip.classList.remove('is-on')
       stage.classList.add('is-zoomed')
       place()
       const full = new Image()
@@ -641,6 +683,8 @@ const items = pieces.map((piece) => {
       const {h} = natural(pieces[index])
       pan = {x: clientX - fx * w * scale, y: clientY - fy * h * scale}
       zoomed = true
+      zoomLearned = true
+      zoomTip.classList.remove('is-on')
       stage.classList.add('is-zoomed')
       place()
     }
@@ -670,6 +714,23 @@ const items = pieces.map((piece) => {
       down = {x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y, moved: false, target: event.target}
       stage.setPointerCapture(event.pointerId)
     })
+
+    // Desktop zoom label: follows the cursor over a zoomable piece until the first zoom
+    const zoomTip = dialog.querySelector<HTMLElement>('[data-zoom-tip]')!
+    let zoomLearned = false
+    const hideTip = () => zoomTip.classList.remove('is-on')
+    stage.addEventListener('pointermove', (event) => {
+      const show =
+        event.pointerType === 'mouse' &&
+        !zoomLearned &&
+        !zoomed &&
+        event.target === media &&
+        media instanceof HTMLImageElement &&
+        media.classList.contains('is-zoomable')
+      zoomTip.classList.toggle('is-on', show)
+      if (show) zoomTip.style.transform = `translate(${event.clientX + 18}px, ${event.clientY + 20}px)`
+    })
+    stage.addEventListener('pointerleave', hideTip)
 
     stage.addEventListener('pointermove', (event) => {
       if (event.pointerType === 'touch' && touches.has(event.pointerId)) {
@@ -767,6 +828,7 @@ const items = pieces.map((piece) => {
     })
 
     dialog.addEventListener('close', () => {
+      hideTip()
       if (media instanceof HTMLVideoElement) media.pause()
       stage.replaceChildren()
       media = null
