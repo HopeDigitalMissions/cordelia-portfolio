@@ -11,8 +11,8 @@ interface ImageValue {
 }
 
 /**
- * Shows the artwork and lets her click where the landing page pan should end.
- * The pan always starts at the image's hotspot (the yellow dot).
+ * Shows the artwork and lets her click where the landing page pan should start.
+ * The pan always ends on the image's hotspot (the yellow dot).
  */
 export function PanPathInput(props: ObjectInputProps) {
   const {onChange, value} = props
@@ -45,7 +45,7 @@ export function PanPathInput(props: ObjectInputProps) {
   if (!src) {
     return (
       <Card padding={3} radius={2} tone="caution" border>
-        <Text size={1}>Add an image first, then click on it here to choose where the pan ends.</Text>
+        <Text size={1}>Add an image first, then click on it here to choose where the pan starts.</Text>
       </Card>
     )
   }
@@ -77,16 +77,16 @@ export function PanPathInput(props: ObjectInputProps) {
               />
             )}
           </svg>
-          <Marker point={start} color="#ffcf33" label="Start" />
-          {end && <Marker point={end} color="#4e2f1b" label="End" />}
+          <Marker point={start} color="#ffcf33" label="End (hotspot)" />
+          {end && <Marker point={end} color="#4e2f1b" label="Start" />}
         </div>
       </Card>
       <Flex align="center" gap={3}>
         <Box flex={1}>
           <Text size={1} muted>
             {end
-              ? 'The view starts on the yellow dot and glides toward the brown one. Click anywhere to move the end.'
-              : 'Click on the piece where the pan should end. It starts at the hotspot (yellow dot), which you set on the image above.'}
+              ? 'The view starts on the brown dot and glides to the yellow one. Click anywhere to move the start.'
+              : 'Click on the piece where the pan should start. It ends on the hotspot (yellow dot), which you set on the image above.'}
           </Text>
         </Box>
         {end && <Button text="Clear" mode="ghost" onClick={() => onChange(unset())} />}
