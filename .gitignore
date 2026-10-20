@@ -30,3 +30,6 @@ artwork-originals/*
 # local env pulled from Vercel
 .env*.local
 .vercel
+
+# Sanity Studio generated files
+.sanity/
