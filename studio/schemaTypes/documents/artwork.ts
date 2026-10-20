@@ -109,7 +109,7 @@ export const artwork = defineType({
       title: 'Landing page motion',
       type: 'string',
       description:
-        'Phones only: how the view drifts so visitors see more of a piece that is cropped to fit the tall screen. Automatic pans toward the side with more of the piece. Computers always show the piece still.',
+        'How the view drifts on phones so visitors see more of a piece cropped to fit the tall screen. Automatic pans toward the side with more of the piece. Computers show it still unless you switch on Also move on computers below.',
       initialValue: 'auto',
       options: {
         layout: 'radio',
@@ -123,11 +123,20 @@ export const artwork = defineType({
       hidden: ({document}) => !document?.showOnLanding,
     }),
     defineField({
+      name: 'landingMoveOnWide',
+      title: 'Also move on computers',
+      type: 'boolean',
+      description:
+        'Off: this piece sits still on computers and only moves on phones. On: it moves on computers too, wherever the screen crops it. A tall piece is shown whole on computers unless Landing page fit is set to Always fill the screen.',
+      initialValue: false,
+      hidden: ({document}) => !document?.showOnLanding || document?.landingMotion === 'still',
+    }),
+    defineField({
       name: 'landingPan',
       title: 'Pan path',
       type: 'object',
       description:
-        'Starts at the point you click and glides to the hotspot, at the Pan speed set on the Landing page. The piece stays on screen until it arrives. Phones only.',
+        'Starts at the point you click and glides to the hotspot, at the Pan speed set on the Landing page. The piece stays on screen until it arrives. Phones only, unless Also move on computers is on.',
       fields: [
         defineField({name: 'x', type: 'number'}),
         defineField({name: 'y', type: 'number'}),

@@ -19,6 +19,7 @@ interface Artwork {
   landingFit?: 'auto' | 'fill' | 'whole'
   landingMotion?: 'auto' | 'path' | 'still'
   landingPan?: {x?: number; y?: number}
+  landingMoveOnWide?: boolean
 }
 
 interface LandingPage {
@@ -32,7 +33,7 @@ interface LandingPage {
   socials?: Socials
 }
 
-const artworkFields = `_id, title, year, image, landingFit, landingMotion, landingPan, "dimensions": image.asset->metadata.dimensions, "lqip": image.asset->metadata.lqip`
+const artworkFields = `_id, title, year, image, landingFit, landingMotion, landingPan, landingMoveOnWide, "dimensions": image.asset->metadata.dimensions, "lqip": image.asset->metadata.lqip`
 
 const page = await sanity.fetch<LandingPage | null>(`
   *[_id == "landingPage"][0]{
@@ -48,7 +49,7 @@ const artworks = [...(page?.slides ?? []), ...(page?.extras ?? [])]
 // Steps up to 5K-class screens; the original's own width is always the last option
 const widths = [640, 960, 1280, 1600, 2000, 2560, 3200, 3840, 4480, 5120, 6016]
 
-const slides: Slide[] = artworks.map(({image, dimensions, title, lqip, landingFit, landingMotion, landingPan}) => {
+const slides: Slide[] = artworks.map(({image, dimensions, title, lqip, landingFit, landingMotion, landingPan, landingMoveOnWide}) => {
   const crop = image.crop ?? {top: 0, bottom: 0, left: 0, right: 0}
   const hotspot = image.hotspot ?? {x: 0.5, y: 0.5}
   // Hotspot and pan points are measured on the uncropped image, so shift them into the cropped frame
@@ -81,6 +82,7 @@ const slides: Slide[] = artworks.map(({image, dimensions, title, lqip, landingFi
     focus,
     motion: panEnd ? 'path' : landingMotion === 'still' ? 'still' : 'auto',
     panEnd,
+    moveOnWide: landingMoveOnWide === true,
     placeholder: lqip,
     backdrop: urlFor(image).width(400).blur(40).quality(60).auto('format').url(),
     fit: landingFit ?? 'auto',
