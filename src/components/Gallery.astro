@@ -105,7 +105,7 @@ const items = pieces.map((piece) => {
     background-size: cover;
   }
 
-  /* With the layout script: each piece is placed in the shortest column */
+  /* With the layout script: pieces are placed in even rows */
   .gallery.is-laid-out {
     columns: auto;
     position: relative;
@@ -287,33 +287,65 @@ const items = pieces.map((piece) => {
   if (gallery && dialog) {
     const pieces = [...gallery.querySelectorAll<HTMLAnchorElement>('.piece')]
 
-    // Masonry: each piece drops into the shortest column, and nothing is taller than the window
+    // Even rows: every piece in a row shares one height and the row spans the full width, so top
+    // and bottom edges line up. Row breaks are chosen to keep heights close to a target, and no
+    // row is taller than the window.
     function layout() {
       const width = gallery!.clientWidth
       const gap = parseFloat(getComputedStyle(gallery!).columnGap) || 16
-      const columns = width >= 1700 ? 3 : width >= 700 ? 2 : 1
-      const columnWidth = (width - (columns - 1) * gap) / columns
       const maxHeight = window.innerHeight - 2 * gap
-      const heights = new Array(columns).fill(0)
+      const target = Math.min(maxHeight, Math.max(240, Math.min(window.innerHeight * 0.55, width * 0.38)))
+      const aspects = pieces.map((piece) => Number(piece.dataset.width) / Number(piece.dataset.height))
+      const n = aspects.length
 
-      for (const piece of pieces) {
-        const aspect = Number(piece.dataset.width) / Number(piece.dataset.height)
-        let w = columnWidth
-        let h = columnWidth / aspect
-        if (h > maxHeight) {
-          h = maxHeight
-          w = h * aspect
-        }
-        const column = heights.indexOf(Math.min(...heights))
-        const x = column * (columnWidth + gap) + (columnWidth - w) / 2
-        piece.style.width = `${w}px`
-        piece.style.height = `${h}px`
-        piece.style.transform = `translate(${x}px, ${heights[column]}px)`
-        piece.querySelector('img')!.sizes = `${Math.ceil(w)}px`
-        heights[column] += h + gap
+      const rowHeight = (from: number, to: number) => {
+        let sum = 0
+        for (let i = from; i < to; i++) sum += aspects[i]
+        return (width - gap * (to - from - 1)) / sum
+      }
+      const cost = (from: number, to: number) => {
+        const h = rowHeight(from, to)
+        const count = to - from
+        if (to === n && h > target) return 0 // a short last row just stays at the target height
+        if (h > maxHeight) return 1e12 + h
+        return count * (h - target) ** 2
       }
 
-      gallery!.style.height = `${Math.max(0, Math.max(...heights) - gap)}px`
+      // Best place to break each row (small enough to try every option)
+      const best = new Array(n + 1).fill(Infinity)
+      const breakAt = new Array(n + 1).fill(0)
+      best[0] = 0
+      for (let to = 1; to <= n; to++) {
+        for (let from = Math.max(0, to - 8); from < to; from++) {
+          const total = best[from] + cost(from, to)
+          if (total < best[to]) {
+            best[to] = total
+            breakAt[to] = from
+          }
+        }
+      }
+      const rows: [number, number][] = []
+      for (let to = n; to > 0; to = breakAt[to]) rows.unshift([breakAt[to], to])
+
+      let top = 0
+      for (const [from, to] of rows) {
+        let h = rowHeight(from, to)
+        if (h > maxHeight || (to === n && h > target)) h = Math.min(maxHeight, target)
+        const rowWidth = aspects.slice(from, to).reduce((sum, a) => sum + a * h, 0) + gap * (to - from - 1)
+        let x = Math.max(0, (width - rowWidth) / 2)
+        for (let i = from; i < to; i++) {
+          const w = aspects[i] * h
+          const piece = pieces[i]
+          piece.style.width = `${w}px`
+          piece.style.height = `${h}px`
+          piece.style.transform = `translate(${x}px, ${top}px)`
+          piece.querySelector('img')!.sizes = `${Math.ceil(w)}px`
+          x += w + gap
+        }
+        top += h + gap
+      }
+
+      gallery!.style.height = `${Math.max(0, top - gap)}px`
       gallery!.classList.add('is-laid-out')
     }
 

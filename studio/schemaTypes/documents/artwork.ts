@@ -75,7 +75,7 @@ export const artwork = defineType({
       title: 'Landing page fit',
       type: 'string',
       description:
-        'Automatic fills the screen whenever the piece and the screen are both wide or both tall. It shows the whole piece over a soft blur of itself when they face different ways (a tall piece on a monitor, a wide piece on an upright phone).',
+        'Automatic fills the screen. A tall piece on a wide monitor is shown whole over a soft blur of itself instead. On phones, a wide piece starts at its hotspot and slowly pans toward the side with more of the piece.',
       initialValue: 'auto',
       options: {
         layout: 'radio',
