@@ -14,6 +14,10 @@ export interface Slide {
   placeholder?: string
   backdrop: string
   fit: 'auto' | 'fill' | 'whole'
+  /** Hotspot as fractions of the (cropped) image */
+  focus: {x: number; y: number}
+  motion: 'auto' | 'path' | 'still'
+  panEnd?: {x: number; y: number}
 }
 
 interface Props {
@@ -35,6 +39,9 @@ const {slides, name, eyebrow, seconds, transition, socials} = Astro.props
         <figure
           class:list={['slide', {'is-active': i === 0}]}
           data-fit={slide.fit}
+          data-focus={`${slide.focus.x} ${slide.focus.y}`}
+          data-motion={slide.motion}
+          data-pan-end={slide.panEnd ? `${slide.panEnd.x} ${slide.panEnd.y}` : undefined}
           data-aspect={slide.width / slide.height}
           data-backdrop={slide.backdrop}
           style={`--position: ${slide.position};${i === 0 && slide.placeholder ? ` --placeholder: url(${slide.placeholder});` : ''}`}
@@ -134,9 +141,14 @@ const {slides, name, eyebrow, seconds, transition, socials} = Astro.props
     filter: drop-shadow(0 0 24px rgb(0 0 0 / 0.25));
   }
 
-  /* Width and drift are set by the script; the piece is drawn at full height and slid sideways */
+  /* Size and drift are set by the script: the piece is drawn at its full shape and slid along its path */
   .slide.is-panning img {
+    position: absolute;
+    top: 0;
+    left: 0;
     max-width: none;
+    object-fit: fill;
+    background: none;
     will-change: transform;
   }
 
@@ -318,10 +330,16 @@ const {slides, name, eyebrow, seconds, transition, socials} = Astro.props
   // A tall piece on a wide screen is shown whole over a blur of itself when cropping would leave
   // less than this share of it visible. Everything else fills the screen.
   const MIN_VISIBLE = 0.55
-  // On upright screens a wide piece starts at its hotspot and drifts toward the side with more art
+  // Automatic motion: on upright screens a wide piece starts at its hotspot and drifts toward the
+  // side with more art. A path set in Sanity runs from the hotspot toward its end point instead,
+  // in any direction, on any screen where the piece is cropped.
   const PAN_SPEED = 28 // CSS pixels per second
+  const MAX_PATH_SPEED = 60
+  const MAX_PATH_ZOOM = 1.3
 
-  const pans = new Map<HTMLElement, {from: number; to: number; animation?: Animation}>()
+  type Pan = {from: [number, number]; to: [number, number]; duration: number; animation?: Animation}
+  const pans = new Map<HTMLElement, Pan>()
+  const point = (value?: string) => (value ? (value.split(' ').map(Number) as [number, number]) : undefined)
 
   function fit() {
     const stageWidth = stage.clientWidth
@@ -334,32 +352,70 @@ const {slides, name, eyebrow, seconds, transition, socials} = Astro.props
       const mode = slide.dataset.fit
       const whole = mode === 'whole' || (mode === 'auto' && aspect < 1 && screen >= 1 && visible < MIN_VISIBLE)
       slide.classList.toggle('is-whole', whole)
-      // Tell the browser exactly how wide the piece is drawn so it fetches enough pixels for this screen
-      const drawn = whole ? Math.min(stageWidth, stageHeight * aspect) : Math.max(stageWidth, stageHeight * aspect)
-      img.sizes = `${Math.ceil(drawn)}px`
       if (whole && !slide.style.getPropertyValue('--backdrop')) {
         slide.style.setProperty('--backdrop', `url(${slide.dataset.backdrop})`)
       }
 
       pans.get(slide)?.animation?.cancel()
-      const overflow = drawn - stageWidth
-      if (!whole && screen < 1 && overflow > 16 && !reducedMotion) {
-        const focus = parseFloat(slide.style.getPropertyValue('--position')) / 100
-        const from = Math.min(0, Math.max(-overflow, stageWidth / 2 - focus * drawn))
-        const hiddenLeft = -from
-        const hiddenRight = overflow + from
-        const travel = Math.min(Math.max(hiddenLeft, hiddenRight), PAN_SPEED * (seconds + 1.5))
-        const to = hiddenRight >= hiddenLeft ? from - travel : from + travel
-        slide.classList.add('is-panning')
-        img.style.width = `${drawn}px`
-        img.style.transform = `translateX(${from}px)`
-        pans.set(slide, {from, to})
-      } else {
-        slide.classList.remove('is-panning')
-        img.style.width = ''
-        img.style.transform = ''
-        pans.delete(slide)
+      pans.delete(slide)
+
+      const cover = Math.max(stageWidth, stageHeight * aspect)
+      let drawnWidth = whole ? Math.min(stageWidth, stageHeight * aspect) : cover
+      const focus = point(slide.dataset.focus) ?? [0.5, 0.5]
+      const end = point(slide.dataset.panEnd)
+      let target: [number, number] | undefined
+      let path = false
+
+      if (!whole && !reducedMotion) {
+        if (slide.dataset.motion === 'path' && end) {
+          // Zoom in a little when the path runs along the side that has no spare room, so it can move that way
+          const spareX = cover - stageWidth > 16
+          const across = spareX ? Math.abs(end[1] - focus[1]) : Math.abs(end[0] - focus[0])
+          drawnWidth = cover * (across > 0.03 ? Math.min(MAX_PATH_ZOOM, 1 + across * 0.8) : 1)
+          target = end
+          path = true
+        } else if (slide.dataset.motion === 'auto' && screen < 1 && cover - stageWidth > 16) {
+          // Toward the side with more of the piece left to see
+          const from = Math.min(0, Math.max(stageWidth - cover, stageWidth / 2 - focus[0] * cover))
+          target = [-from > cover - stageWidth + from ? 0 : 1, focus[1]]
+        }
       }
+
+      img.sizes = `${Math.ceil(drawnWidth)}px`
+
+      if (target) {
+        const drawnHeight = drawnWidth / aspect
+        // Offset that centers a point of the piece on screen, without showing past its edges
+        const offset = ([x, y]: [number, number]): [number, number] => [
+          Math.min(0, Math.max(stageWidth - drawnWidth, stageWidth / 2 - x * drawnWidth)),
+          Math.min(0, Math.max(stageHeight - drawnHeight, stageHeight / 2 - y * drawnHeight)),
+        ]
+        const from = offset(focus)
+        let to = offset(target)
+        let distance = Math.hypot(to[0] - from[0], to[1] - from[1])
+        let duration: number
+        if (path) {
+          // Reach the end point as the piece leaves, unless that would mean rushing
+          duration = Math.max((seconds + 1.5) * 1000, (distance / MAX_PATH_SPEED) * 1000)
+        } else {
+          const travel = Math.min(distance, PAN_SPEED * (seconds + 1.5))
+          to = [from[0] + ((to[0] - from[0]) * travel) / (distance || 1), from[1]]
+          distance = travel
+          duration = (travel / PAN_SPEED) * 1000
+        }
+        if (distance > 8) {
+          slide.classList.add('is-panning')
+          img.style.width = `${drawnWidth}px`
+          img.style.height = `${drawnHeight}px`
+          img.style.transform = `translate(${from[0]}px, ${from[1]}px)`
+          pans.set(slide, {from, to, duration})
+          continue
+        }
+      }
+      slide.classList.remove('is-panning')
+      img.style.width = ''
+      img.style.height = ''
+      img.style.transform = ''
     }
     startPan(slides[current])
   }
@@ -369,8 +425,11 @@ const {slides, name, eyebrow, seconds, transition, socials} = Astro.props
     if (!pan) return
     pan.animation?.cancel()
     pan.animation = slide.querySelector('img')!.animate(
-      [{transform: `translateX(${pan.from}px)`}, {transform: `translateX(${pan.to}px)`}],
-      {duration: (Math.abs(pan.to - pan.from) / PAN_SPEED) * 1000, easing: 'ease-in-out', fill: 'forwards'},
+      [
+        {transform: `translate(${pan.from[0]}px, ${pan.from[1]}px)`},
+        {transform: `translate(${pan.to[0]}px, ${pan.to[1]}px)`},
+      ],
+      {duration: pan.duration, easing: 'ease-in-out', fill: 'forwards'},
     )
   }
 

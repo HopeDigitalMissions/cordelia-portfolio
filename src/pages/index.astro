@@ -17,6 +17,8 @@ interface Artwork {
   dimensions: {width: number; height: number}
   lqip?: string
   landingFit?: 'auto' | 'fill' | 'whole'
+  landingMotion?: 'auto' | 'path' | 'still'
+  landingPan?: {x?: number; y?: number}
 }
 
 interface LandingPage {
@@ -29,7 +31,7 @@ interface LandingPage {
   socials?: Socials
 }
 
-const artworkFields = `_id, title, year, image, landingFit, "dimensions": image.asset->metadata.dimensions, "lqip": image.asset->metadata.lqip`
+const artworkFields = `_id, title, year, image, landingFit, landingMotion, landingPan, "dimensions": image.asset->metadata.dimensions, "lqip": image.asset->metadata.lqip`
 
 const page = await sanity.fetch<LandingPage | null>(`
   *[_id == "landingPage"][0]{
@@ -45,12 +47,22 @@ const artworks = [...(page?.slides ?? []), ...(page?.extras ?? [])]
 // Steps up to 5K-class screens; the original's own width is always the last option
 const widths = [640, 960, 1280, 1600, 2000, 2560, 3200, 3840, 4480, 5120, 6016]
 
-const slides: Slide[] = artworks.map(({image, dimensions, title, lqip, landingFit}) => {
+const slides: Slide[] = artworks.map(({image, dimensions, title, lqip, landingFit, landingMotion, landingPan}) => {
   const crop = image.crop ?? {top: 0, bottom: 0, left: 0, right: 0}
   const hotspot = image.hotspot ?? {x: 0.5, y: 0.5}
-  // The hotspot is measured on the uncropped image, so shift it into the cropped frame
-  const posX = (hotspot.x - crop.left) / (1 - crop.left - crop.right)
-  const posY = (hotspot.y - crop.top) / (1 - crop.top - crop.bottom)
+  // Hotspot and pan points are measured on the uncropped image, so shift them into the cropped frame
+  const clamp = (n: number) => Math.min(Math.max(n, 0), 1)
+  const inCrop = (p: {x: number; y: number}) => ({
+    x: clamp((p.x - crop.left) / (1 - crop.left - crop.right)),
+    y: clamp((p.y - crop.top) / (1 - crop.top - crop.bottom)),
+  })
+  const focus = inCrop(hotspot)
+  const posX = focus.x
+  const posY = focus.y
+  const panEnd =
+    landingMotion === 'path' && typeof landingPan?.x === 'number' && typeof landingPan?.y === 'number'
+      ? inCrop({x: landingPan.x, y: landingPan.y})
+      : undefined
   const width = Math.round(dimensions.width * (1 - crop.left - crop.right))
   const height = Math.round(dimensions.height * (1 - crop.top - crop.bottom))
   const aspect = width / height
@@ -64,7 +76,10 @@ const slides: Slide[] = artworks.map(({image, dimensions, title, lqip, landingFi
     alt: image.alt ?? title,
     width,
     height,
-    position: `${(Math.min(Math.max(posX, 0), 1) * 100).toFixed(1)}% ${(Math.min(Math.max(posY, 0), 1) * 100).toFixed(1)}%`,
+    position: `${(posX * 100).toFixed(1)}% ${(posY * 100).toFixed(1)}%`,
+    focus,
+    motion: panEnd ? 'path' : landingMotion === 'still' ? 'still' : 'auto',
+    panEnd,
     placeholder: lqip,
     backdrop: urlFor(image).width(400).blur(40).quality(60).auto('format').url(),
     fit: landingFit ?? 'auto',

@@ -1,5 +1,6 @@
 import {defineField, defineType} from 'sanity'
 import {ImageIcon} from '@sanity/icons/Image'
+import {PanPathInput} from '../../components/PanPathInput'
 
 export const artwork = defineType({
   name: 'artwork',
@@ -87,6 +88,37 @@ export const artwork = defineType({
         ],
       },
       hidden: ({document}) => !document?.showOnLanding,
+    }),
+    defineField({
+      name: 'landingMotion',
+      title: 'Landing page motion',
+      type: 'string',
+      description:
+        'How the view drifts while this piece is on screen and cropped. Automatic pans wide pieces on phones toward the side with more of the piece.',
+      initialValue: 'auto',
+      options: {
+        layout: 'radio',
+        direction: 'horizontal',
+        list: [
+          {title: 'Automatic', value: 'auto'},
+          {title: 'Follow my path', value: 'path'},
+          {title: 'Stay still', value: 'still'},
+        ],
+      },
+      hidden: ({document}) => !document?.showOnLanding,
+    }),
+    defineField({
+      name: 'landingPan',
+      title: 'Pan path',
+      type: 'object',
+      description:
+        'Starts at the hotspot and glides toward the point you click, on any screen where the piece is cropped. To pan down a tall piece on computers too, set Landing page fit to Always fill the screen.',
+      fields: [
+        defineField({name: 'x', type: 'number'}),
+        defineField({name: 'y', type: 'number'}),
+      ],
+      components: {input: PanPathInput},
+      hidden: ({document}) => !document?.showOnLanding || document?.landingMotion !== 'path',
     }),
   ],
   orderings: [
