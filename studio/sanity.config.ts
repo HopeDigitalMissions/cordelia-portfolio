@@ -17,7 +17,12 @@ export default defineConfig({
               .title('Landing page')
               .id('landingPage')
               .child(S.document().schemaType('landingPage').documentId('landingPage')),
+            S.listItem()
+              .title('Projects page')
+              .id('projectsPage')
+              .child(S.document().schemaType('projectsPage').documentId('projectsPage')),
             S.divider(),
+            S.documentTypeListItem('project').title('Projects'),
             S.documentTypeListItem('artwork').title('Artwork'),
           ]),
     }),

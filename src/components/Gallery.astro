@@ -1,0 +1,541 @@
+---
+import {urlFor} from '../lib/sanity'
+import type {Piece} from '../lib/projects'
+
+interface Props {
+  pieces: Piece[]
+}
+
+const {pieces} = Astro.props
+const widths = [400, 640, 900, 1200, 1600, 2000, 2600]
+
+const items = pieces.map((piece) => {
+  const {width, height} = piece.dimensions
+  // The gallery always shows the whole piece, so size it from the original asset rather than any crop
+  const src = (w: number) => urlFor(piece.image.asset).width(w).quality(82).auto('format').url()
+  const usable = widths.filter((w) => w < width)
+  return {
+    ...piece,
+    width,
+    height,
+    src: src(Math.min(1200, width)),
+    srcset: [...usable, Math.min(width, 3200)].map((w) => `${src(w)} ${w}w`).join(', '),
+  }
+})
+---
+
+<div class="gallery" data-gallery>
+  {
+    items.map((item, i) => (
+      <a
+        class="piece"
+        href={item.video ?? item.url}
+        data-full={item.url}
+        data-video={item.video}
+        data-width={item.width}
+        data-height={item.height}
+        aria-label={item.video ? `Play ${item.title}` : `View ${item.title}`}
+        style={`aspect-ratio: ${item.width} / ${item.height};`}
+      >
+        <img
+          src={item.src}
+          srcset={item.srcset}
+          sizes="(min-width: 1700px) 33vw, (min-width: 700px) 50vw, 100vw"
+          alt={item.image.alt ?? item.title}
+          width={item.width}
+          height={item.height}
+          loading={i < 4 ? 'eager' : 'lazy'}
+          decoding="async"
+          style={item.lqip ? `background-image: url(${item.lqip})` : undefined}
+        />
+        {
+          item.video && (
+            <span class="play" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M8 5.5v13l11-6.5z" fill="currentColor" />
+              </svg>
+            </span>
+          )
+        }
+      </a>
+    ))
+  }
+</div>
+
+<dialog class="viewer" aria-label="Artwork viewer">
+  <div class="viewer-stage" data-stage></div>
+  <button class="viewer-button viewer-close" type="button" aria-label="Close" data-close>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none" />
+    </svg>
+  </button>
+  <button class="viewer-button viewer-prev" type="button" aria-label="Previous piece" data-prev>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+    </svg>
+  </button>
+  <button class="viewer-button viewer-next" type="button" aria-label="Next piece" data-next>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+    </svg>
+  </button>
+</dialog>
+
+<style>
+  /* Without the layout script: simple columns, nothing taller than the window */
+  .gallery {
+    columns: 2 300px;
+    column-gap: var(--gutter);
+  }
+
+  .piece {
+    position: relative;
+    display: block;
+    break-inside: avoid;
+    margin-bottom: var(--gutter);
+    max-height: calc(100vh - 2 * var(--gutter));
+    cursor: zoom-in;
+  }
+
+  .piece img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background-size: cover;
+  }
+
+  /* With the layout script: each piece is placed in the shortest column */
+  .gallery.is-laid-out {
+    columns: auto;
+    position: relative;
+  }
+
+  .gallery.is-laid-out .piece {
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin: 0;
+    max-height: none;
+    aspect-ratio: auto;
+  }
+
+  .piece:focus-visible {
+    outline: 3px solid var(--cocoa);
+    outline-offset: 3px;
+  }
+
+  .play {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: grid;
+    place-items: center;
+    width: 4rem;
+    height: 4rem;
+    margin: -2rem 0 0 -2rem;
+    border-radius: 50%;
+    background: var(--paper);
+    color: var(--cocoa);
+    box-shadow: 0 2px 10px rgb(0 0 0 / 0.25);
+    transition: transform 150ms ease-out;
+  }
+
+  .play svg {
+    width: 1.75rem;
+    margin-left: 0.2rem;
+  }
+
+  .piece:hover .play {
+    transform: scale(1.08);
+  }
+
+  .viewer {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: hidden;
+  }
+
+  .viewer::backdrop {
+    background: rgb(255 207 51 / 0.9);
+  }
+
+  .viewer-stage {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  .viewer-stage :global(img),
+  .viewer-stage :global(video) {
+    display: block;
+    max-width: none;
+    box-shadow: 0 4px 28px rgb(0 0 0 / 0.22);
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+
+  .viewer-stage :global(img.is-zoomable) {
+    cursor: zoom-in;
+  }
+
+  .viewer-stage.is-zoomed {
+    display: block;
+  }
+
+  .viewer-stage.is-zoomed :global(img) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    cursor: zoom-out;
+    box-shadow: none;
+  }
+
+  .viewer-button {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--paper);
+    color: var(--cocoa);
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.2);
+    cursor: pointer;
+    transition:
+      background-color 150ms,
+      opacity 150ms;
+  }
+
+  .viewer-button svg {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  .viewer-button:hover,
+  .viewer-button:focus-visible {
+    background: var(--sun-deep);
+  }
+
+  .viewer-button:focus-visible {
+    outline: 2px solid var(--cocoa);
+    outline-offset: 2px;
+  }
+
+  .viewer-close {
+    top: clamp(10px, 2vmin, 20px);
+    right: clamp(10px, 2vmin, 20px);
+  }
+
+  .viewer-prev,
+  .viewer-next {
+    top: 50%;
+    margin-top: -1.375rem;
+  }
+
+  .viewer-prev {
+    left: clamp(8px, 1.5vmin, 18px);
+  }
+
+  .viewer-next {
+    right: clamp(8px, 1.5vmin, 18px);
+  }
+
+  .viewer-button[hidden] {
+    display: none;
+  }
+
+  @media (max-width: 600px) {
+    .viewer-prev,
+    .viewer-next {
+      width: 2.25rem;
+      height: 2.25rem;
+      margin-top: -1.125rem;
+      opacity: 0.85;
+    }
+  }
+
+  /* Out of the way while panning around a zoomed piece */
+  .viewer:has(.is-zoomed) .viewer-prev,
+  .viewer:has(.is-zoomed) .viewer-next {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  :global(html.viewer-open) {
+    overflow: hidden;
+  }
+</style>
+
+<script>
+  const gallery = document.querySelector<HTMLElement>('[data-gallery]')
+  const dialog = document.querySelector<HTMLDialogElement>('.viewer')
+
+  if (gallery && dialog) {
+    const pieces = [...gallery.querySelectorAll<HTMLAnchorElement>('.piece')]
+
+    // Masonry: each piece drops into the shortest column, and nothing is taller than the window
+    function layout() {
+      const width = gallery!.clientWidth
+      const gap = parseFloat(getComputedStyle(gallery!).columnGap) || 16
+      const columns = width >= 1700 ? 3 : width >= 700 ? 2 : 1
+      const columnWidth = (width - (columns - 1) * gap) / columns
+      const maxHeight = window.innerHeight - 2 * gap
+      const heights = new Array(columns).fill(0)
+
+      for (const piece of pieces) {
+        const aspect = Number(piece.dataset.width) / Number(piece.dataset.height)
+        let w = columnWidth
+        let h = columnWidth / aspect
+        if (h > maxHeight) {
+          h = maxHeight
+          w = h * aspect
+        }
+        const column = heights.indexOf(Math.min(...heights))
+        const x = column * (columnWidth + gap) + (columnWidth - w) / 2
+        piece.style.width = `${w}px`
+        piece.style.height = `${h}px`
+        piece.style.transform = `translate(${x}px, ${heights[column]}px)`
+        piece.querySelector('img')!.sizes = `${Math.ceil(w)}px`
+        heights[column] += h + gap
+      }
+
+      gallery!.style.height = `${Math.max(0, Math.max(...heights) - gap)}px`
+      gallery!.classList.add('is-laid-out')
+    }
+
+    layout()
+    new ResizeObserver(layout).observe(gallery)
+    window.addEventListener('resize', layout)
+
+    // Full-screen viewer
+    const stage = dialog.querySelector<HTMLElement>('[data-stage]')!
+    const prevButton = dialog.querySelector<HTMLButtonElement>('[data-prev]')!
+    const nextButton = dialog.querySelector<HTMLButtonElement>('[data-next]')!
+    prevButton.hidden = nextButton.hidden = pieces.length < 2
+
+    let index = 0
+    let media: HTMLImageElement | HTMLVideoElement | null = null
+    let zoomed = false
+    let loadedWidth = 0
+    let pan = {x: 0, y: 0}
+
+    const natural = (piece: HTMLElement) => ({w: Number(piece.dataset.width), h: Number(piece.dataset.height)})
+    const sized = (url: string, w: number) => `${url}?w=${w}&q=88&auto=format`
+
+    function fit() {
+      const {w, h} = natural(pieces[index])
+      const pad = Math.max(16, Math.min(56, Math.min(innerWidth, innerHeight) * 0.05))
+      const scale = Math.min(1, (innerWidth - 2 * pad) / w, (innerHeight - 2 * pad) / h)
+      return {w: Math.round(w * scale), h: Math.round(h * scale)}
+    }
+
+    // Ask the image CDN for just enough pixels for the size on screen, stepping up as the window grows
+    function sharpen(img: HTMLImageElement, displayWidth: number) {
+      const piece = pieces[index]
+      const want = Math.min(natural(piece).w, Math.ceil((displayWidth * devicePixelRatio) / 400) * 400)
+      if (want <= loadedWidth) return
+      loadedWidth = want
+      const next = new Image()
+      next.src = sized(piece.dataset.full!, want)
+      next.decode().then(
+        () => {
+          if (media === img && !zoomed) img.src = next.src
+        },
+        () => {},
+      )
+    }
+
+    function place() {
+      if (!media) return
+      const piece = pieces[index]
+      if (zoomed && media instanceof HTMLImageElement) {
+        const {w, h} = natural(piece)
+        media.style.width = `${w}px`
+        media.style.height = `${h}px`
+        clampPan()
+        return
+      }
+      const size = fit()
+      media.style.width = `${size.w}px`
+      media.style.height = `${size.h}px`
+      media.style.transform = ''
+      if (media instanceof HTMLImageElement) {
+        media.classList.toggle('is-zoomable', natural(piece).w > size.w * 1.4)
+        sharpen(media, size.w)
+      }
+    }
+
+    function clampPan() {
+      if (!media) return
+      const {w, h} = natural(pieces[index])
+      const limit = (offset: number, size: number, view: number) =>
+        size <= view ? (view - size) / 2 : Math.min(0, Math.max(view - size, offset))
+      pan = {x: limit(pan.x, w, innerWidth), y: limit(pan.y, h, innerHeight)}
+      media.style.transform = `translate(${pan.x}px, ${pan.y}px)`
+    }
+
+    function show(i: number) {
+      index = (i + pieces.length) % pieces.length
+      const piece = pieces[index]
+      const thumb = piece.querySelector('img')!
+      zoomed = false
+      loadedWidth = 0
+      stage.classList.remove('is-zoomed')
+      stage.replaceChildren()
+
+      if (piece.dataset.video) {
+        const video = document.createElement('video')
+        video.src = piece.dataset.video
+        video.poster = thumb.currentSrc || thumb.src
+        video.controls = true
+        video.autoplay = true
+        video.playsInline = true
+        media = video
+      } else {
+        const img = document.createElement('img')
+        img.alt = thumb.alt
+        img.draggable = false
+        // Start from the gallery's copy so something shows at once, then sharpen
+        img.src = thumb.currentSrc || thumb.src
+        media = img
+      }
+      stage.append(media)
+      place()
+
+      // Warm up the neighbours at screen size
+      for (const n of [index + 1, index - 1]) {
+        const neighbour = pieces[(n + pieces.length) % pieces.length]
+        if (neighbour.dataset.video) continue
+        const pre = new Image()
+        pre.src = sized(neighbour.dataset.full!, Math.min(natural(neighbour).w, Math.ceil((fit().w * devicePixelRatio) / 400) * 400))
+      }
+    }
+
+    // A mouse pans by where it sits in the window, so the whole piece is reachable without dragging
+    const glide = (clientX: number, clientY: number) => {
+      const {w, h} = natural(pieces[index])
+      return {x: (-(w - innerWidth) * clientX) / innerWidth, y: (-(h - innerHeight) * clientY) / innerHeight}
+    }
+
+    function zoomAt(clientX: number, clientY: number, pointerType: string) {
+      if (!(media instanceof HTMLImageElement) || !media.classList.contains('is-zoomable')) return
+      const img = media
+      const rect = img.getBoundingClientRect()
+      const {w, h} = natural(pieces[index])
+      // On touch, keep the tapped spot under the finger as the piece grows to full size
+      pan =
+        pointerType === 'mouse'
+          ? glide(clientX, clientY)
+          : {
+              x: clientX - ((clientX - rect.left) / rect.width) * w,
+              y: clientY - ((clientY - rect.top) / rect.height) * h,
+            }
+      zoomed = true
+      stage.classList.add('is-zoomed')
+      place()
+      const full = new Image()
+      full.src = pieces[index].dataset.full!
+      full.decode().then(
+        () => {
+          if (media === img && zoomed) img.src = full.src
+        },
+        () => {},
+      )
+    }
+
+    function unzoom() {
+      zoomed = false
+      stage.classList.remove('is-zoomed')
+      place()
+    }
+
+    // One set of pointer handlers covers mouse, pen and touch
+    let down: {x: number; y: number; panX: number; panY: number; moved: boolean; target: EventTarget | null} | null = null
+
+    stage.addEventListener('pointerdown', (event) => {
+      // Leave the video's own controls alone
+      if (event.target instanceof HTMLVideoElement) return
+      down = {x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y, moved: false, target: event.target}
+      stage.setPointerCapture(event.pointerId)
+    })
+
+    stage.addEventListener('pointermove', (event) => {
+      if (zoomed && media) {
+        if (event.pointerType === 'mouse' && !down) {
+          pan = glide(event.clientX, event.clientY)
+          clampPan()
+        } else if (down) {
+          pan = {x: down.panX + event.clientX - down.x, y: down.panY + event.clientY - down.y}
+          clampPan()
+        }
+      }
+      if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 6) down.moved = true
+    })
+
+    stage.addEventListener('pointerup', (event) => {
+      if (!down) return
+      const start = down
+      down = null
+      const dx = event.clientX - start.x
+      const dy = event.clientY - start.y
+
+      if (!start.moved) {
+        if (start.target === media && media instanceof HTMLImageElement) {
+          if (zoomed) unzoom()
+          else zoomAt(event.clientX, event.clientY, event.pointerType)
+        } else if (start.target === stage) {
+          dialog!.close()
+        }
+        return
+      }
+      // Swipe between pieces when not zoomed
+      if (!zoomed && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) show(index + (dx < 0 ? 1 : -1))
+    })
+
+    stage.addEventListener('pointercancel', () => (down = null))
+
+    prevButton.addEventListener('click', () => show(index - 1))
+    nextButton.addEventListener('click', () => show(index + 1))
+    dialog.querySelector('[data-close]')!.addEventListener('click', () => dialog.close())
+
+    dialog.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowRight') show(index + 1)
+      else if (event.key === 'ArrowLeft') show(index - 1)
+    })
+
+    dialog.addEventListener('close', () => {
+      if (media instanceof HTMLVideoElement) media.pause()
+      stage.replaceChildren()
+      media = null
+      document.documentElement.classList.remove('viewer-open')
+    })
+
+    window.addEventListener('resize', () => {
+      if (dialog.open) place()
+    })
+
+    pieces.forEach((piece, i) => {
+      piece.addEventListener('click', (event) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey) return
+        event.preventDefault()
+        document.documentElement.classList.add('viewer-open')
+        dialog.showModal()
+        show(i)
+      })
+    })
+  }
+</script>

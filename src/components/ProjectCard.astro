@@ -1,0 +1,123 @@
+---
+import {urlFor} from '../lib/sanity'
+import type {ProjectSummary} from '../lib/projects'
+
+interface Props {
+  project: ProjectSummary
+  eager?: boolean
+}
+
+const {project, eager} = Astro.props
+const cover = project.cover
+const poster = (w: number) => urlFor(cover!.image).width(w).height(Math.round(w * 1.5)).fit('crop').quality(80).auto('format').url()
+const widths = [320, 480, 640, 800, 1000]
+---
+
+<!-- The image is already cut to the card's 2:3 shape (crop and hotspot from Sanity), so the
+     title's background lines up with it exactly -->
+<a
+  class="card"
+  href={`/projects/${project.slug}`}
+  style={cover ? `--poster: url(${poster(480)});` : undefined}
+>
+  {
+    cover && (
+      <img
+        src={poster(640)}
+        srcset={widths.map((w) => `${poster(w)} ${w}w`).join(', ')}
+        sizes="(min-width: 1400px) 22vw, (min-width: 900px) 30vw, 50vw"
+        alt=""
+        width="640"
+        height="960"
+        loading={eager ? 'eager' : 'lazy'}
+        decoding="async"
+      />
+    )
+  }
+  <span class="plate" aria-hidden="true"><span>{project.title}</span></span>
+  <span class="title"><span>{project.title}</span></span>
+</a>
+
+<style>
+  .card {
+    position: relative;
+    display: block;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+    background: var(--cocoa);
+    text-decoration: none;
+    color: var(--paper);
+  }
+
+  img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* The plate and the title are laid out identically so the title sits exactly on its plate */
+  .plate,
+  .title {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: clamp(0.5rem, 1.5vw, 1rem);
+    text-align: center;
+    font-size: clamp(0.85rem, 0.6rem + 1vw, 1.35rem);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .plate span,
+  .title span {
+    display: inline-block;
+    padding: 0.5em 0.7em 0.5em 0.84em;
+  }
+
+  .plate span {
+    color: transparent;
+    background: var(--sun);
+    opacity: 0;
+    transform: scale(0.96);
+    transition:
+      opacity 160ms ease-out,
+      transform 160ms ease-out;
+  }
+
+  .title span {
+    color: var(--paper);
+    text-shadow:
+      0 1px 2px rgb(0 0 0 / 0.5),
+      0 0 18px rgb(0 0 0 / 0.45);
+  }
+
+  /* Hover: a solid plate appears and the art shows through the letters */
+  .card:hover .plate span,
+  .card:focus-visible .plate span {
+    opacity: 1;
+    transform: none;
+  }
+
+  .card:hover .title,
+  .card:focus-visible .title {
+    background: var(--poster) center / cover no-repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+
+  .card:hover .title span,
+  .card:focus-visible .title span {
+    color: transparent;
+    text-shadow: none;
+  }
+
+  .card:focus-visible {
+    outline: 3px solid var(--cocoa);
+    outline-offset: 3px;
+  }
+</style>

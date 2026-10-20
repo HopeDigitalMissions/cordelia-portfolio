@@ -1,0 +1,33 @@
+---
+import SocialLinks, {type Socials} from './SocialLinks.astro'
+
+interface Props {
+  name: string
+  socials: Socials
+}
+
+const {name, socials} = Astro.props
+---
+
+<footer class="site-footer">
+  <SocialLinks socials={socials} />
+  <p>&copy; {new Date().getFullYear()} {name}</p>
+</footer>
+
+<style>
+  .site-footer {
+    display: grid;
+    justify-items: center;
+    gap: 0.9rem;
+    padding: clamp(2.5rem, 6vw, 4rem) 0 clamp(1.5rem, 3vw, 2rem);
+    color: var(--cocoa);
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+</style>

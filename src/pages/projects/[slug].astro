@@ -1,0 +1,119 @@
+---
+import Page from '../../layouts/Page.astro'
+import Gallery from '../../components/Gallery.astro'
+import {getSite} from '../../lib/sanity'
+import {getProjects, type Project} from '../../lib/projects'
+
+export async function getStaticPaths() {
+  const {projects} = await getProjects()
+  return projects.map((project, i) => ({
+    params: {slug: project.slug},
+    props: {project, next: projects.length > 1 ? projects[(i + 1) % projects.length] : null},
+  }))
+}
+
+interface Props {
+  project: Project
+  next: Project | null
+}
+
+const {project, next} = Astro.props
+const site = await getSite()
+---
+
+<Page
+  title={`${project.title} | ${site.name}`}
+  site={site}
+  description={project.description ?? `${project.title}, a project by ${site.name}.`}
+>
+  <div class="intro">
+    <a class="back" href="/projects">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+      All projects
+    </a>
+    <h1>{project.title}</h1>
+    {project.description && <p>{project.description}</p>}
+  </div>
+
+  <Gallery pieces={project.pieces} />
+
+  {
+    next && (
+      <nav class="next" aria-label="More projects">
+        <a href={`/projects/${next.slug}`}>
+          Next project: {next.title}
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 5l7 7-7 7" />
+          </svg>
+        </a>
+      </nav>
+    )
+  }
+</Page>
+
+<style>
+  .intro {
+    display: grid;
+    justify-items: center;
+    gap: 0.75rem;
+    margin: clamp(0.25rem, 1.5vw, 1rem) 0 clamp(1.5rem, 3vw, 2.5rem);
+    text-align: center;
+    color: var(--cocoa);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(1.2rem, 0.9rem + 1.4vw, 2rem);
+    font-weight: 500;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    margin-right: -0.24em;
+  }
+
+  .intro p {
+    max-width: 40rem;
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .back,
+  .next a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--cocoa);
+  }
+
+  .back:hover,
+  .next a:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.3em;
+  }
+
+  .back:focus-visible,
+  .next a:focus-visible {
+    outline: 2px solid var(--cocoa);
+    outline-offset: 3px;
+  }
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .next {
+    display: flex;
+    justify-content: center;
+    margin-top: clamp(1.5rem, 4vw, 3rem);
+  }
+</style>

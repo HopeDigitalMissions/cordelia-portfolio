@@ -1,0 +1,40 @@
+---
+import Base from './Base.astro'
+import SiteHeader from '../components/SiteHeader.astro'
+import SiteFooter from '../components/SiteFooter.astro'
+import type {Site} from '../lib/sanity'
+
+interface Props {
+  title: string
+  description?: string
+  site: Site
+}
+
+const {title, description, site} = Astro.props
+---
+
+<Base title={title} description={description}>
+  <div class="page">
+    <SiteHeader name={site.name} />
+    <main>
+      <slot />
+    </main>
+    <SiteFooter name={site.name} socials={site.socials} />
+  </div>
+</Base>
+
+<style is:global>
+  body:has(.page) {
+    background: var(--sun);
+  }
+</style>
+
+<style>
+  .page {
+    --gutter: clamp(12px, 2.2vw, 30px);
+    min-height: 100vh;
+    padding: 0 var(--gutter);
+    max-width: 1760px;
+    margin: 0 auto;
+  }
+</style>

@@ -35,6 +35,13 @@ export const artwork = defineType({
       validation: (rule) => rule.required(),
     }),
     defineField({
+      name: 'video',
+      type: 'file',
+      description:
+        'Optional. Add an MP4 to show a video for this piece. The image above is used as its cover until it plays.',
+      options: {accept: 'video/mp4,video/webm,video/quicktime'},
+    }),
+    defineField({
       name: 'year',
       type: 'number',
       validation: (rule) => rule.integer().min(1900).max(2100),
