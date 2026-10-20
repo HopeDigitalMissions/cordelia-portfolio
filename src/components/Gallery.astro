@@ -364,6 +364,8 @@ const items = pieces.map((piece) => {
     let zoomed = false
     let loadedWidth = 0
     let pan = {x: 0, y: 0}
+    // Zoom level as a share of the original's pixels: 1 is full resolution
+    let scale = 1
 
     const natural = (piece: HTMLElement) => ({w: Number(piece.dataset.width), h: Number(piece.dataset.height)})
     const sized = (url: string, w: number) => `${url}?w=${w}&q=92&auto=format`
@@ -388,7 +390,7 @@ const items = pieces.map((piece) => {
       next.src = want === full ? piece.dataset.full! : sized(piece.dataset.full!, want)
       next.decode().then(
         () => {
-          if (media === img && !zoomed) img.src = next.src
+          if (media === img) img.src = next.src
         },
         () => {},
       )
@@ -399,9 +401,10 @@ const items = pieces.map((piece) => {
       const piece = pieces[index]
       if (zoomed && media instanceof HTMLImageElement) {
         const {w, h} = natural(piece)
-        media.style.width = `${w}px`
-        media.style.height = `${h}px`
+        media.style.width = `${w * scale}px`
+        media.style.height = `${h * scale}px`
         clampPan()
+        sharpen(media, w * scale)
         return
       }
       const size = fit()
@@ -419,7 +422,7 @@ const items = pieces.map((piece) => {
       const {w, h} = natural(pieces[index])
       const limit = (offset: number, size: number, view: number) =>
         size <= view ? (view - size) / 2 : Math.min(0, Math.max(view - size, offset))
-      pan = {x: limit(pan.x, w, innerWidth), y: limit(pan.y, h, innerHeight)}
+      pan = {x: limit(pan.x, w * scale, innerWidth), y: limit(pan.y, h * scale, innerHeight)}
       media.style.transform = `translate(${pan.x}px, ${pan.y}px)`
     }
 
@@ -428,6 +431,7 @@ const items = pieces.map((piece) => {
       const piece = pieces[index]
       const thumb = piece.querySelector('img')!
       zoomed = false
+      scale = 1
       loadedWidth = 0
       stage.classList.remove('is-zoomed')
       stage.replaceChildren()
@@ -479,6 +483,7 @@ const items = pieces.map((piece) => {
               x: clientX - ((clientX - rect.left) / rect.width) * w,
               y: clientY - ((clientY - rect.top) / rect.height) * h,
             }
+      scale = 1
       zoomed = true
       stage.classList.add('is-zoomed')
       place()
@@ -494,9 +499,37 @@ const items = pieces.map((piece) => {
 
     function unzoom() {
       zoomed = false
+      scale = 1
       stage.classList.remove('is-zoomed')
       place()
     }
+
+    // Touch: pinch to zoom anywhere between fitting the screen and full resolution,
+    // keeping the spot between the fingers in place. Double-tap toggles a closer look.
+    function zoomTo(nextScale: number, clientX: number, clientY: number) {
+      if (!(media instanceof HTMLImageElement)) return
+      const {w} = natural(pieces[index])
+      const fitScale = fit().w / w
+      const rect = media.getBoundingClientRect()
+      const fx = (clientX - rect.left) / rect.width
+      const fy = (clientY - rect.top) / rect.height
+      scale = Math.min(Math.max(nextScale, fitScale), Math.max(1, fitScale))
+      if (scale <= fitScale * 1.02) {
+        unzoom()
+        return
+      }
+      const {h} = natural(pieces[index])
+      pan = {x: clientX - fx * w * scale, y: clientY - fy * h * scale}
+      zoomed = true
+      stage.classList.add('is-zoomed')
+      place()
+    }
+
+    const touches = new Map<number, {x: number; y: number}>()
+    let pinch: {distance: number; scale: number} | null = null
+    let lastTap = 0
+
+    const currentScale = () => (zoomed ? scale : fit().w / natural(pieces[index]).w)
 
     // One set of pointer handlers covers mouse, pen and touch
     let down: {x: number; y: number; panX: number; panY: number; moved: boolean; target: EventTarget | null} | null = null
@@ -504,11 +537,29 @@ const items = pieces.map((piece) => {
     stage.addEventListener('pointerdown', (event) => {
       // Leave the video's own controls alone
       if (event.target instanceof HTMLVideoElement) return
+      if (event.pointerType === 'touch') {
+        touches.set(event.pointerId, {x: event.clientX, y: event.clientY})
+        if (touches.size === 2) {
+          const [a, b] = [...touches.values()]
+          pinch = {distance: Math.hypot(a.x - b.x, a.y - b.y), scale: currentScale()}
+          down = null
+          stage.setPointerCapture(event.pointerId)
+          return
+        }
+      }
       down = {x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y, moved: false, target: event.target}
       stage.setPointerCapture(event.pointerId)
     })
 
     stage.addEventListener('pointermove', (event) => {
+      if (event.pointerType === 'touch' && touches.has(event.pointerId)) {
+        touches.set(event.pointerId, {x: event.clientX, y: event.clientY})
+        if (pinch && touches.size >= 2) {
+          const [a, b] = [...touches.values()]
+          zoomTo(pinch.scale * (Math.hypot(a.x - b.x, a.y - b.y) / pinch.distance), (a.x + b.x) / 2, (a.y + b.y) / 2)
+          return
+        }
+      }
       if (zoomed && media) {
         if (event.pointerType === 'mouse' && !down) {
           pan = glide(event.clientX, event.clientY)
@@ -521,7 +572,15 @@ const items = pieces.map((piece) => {
       if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 6) down.moved = true
     })
 
+    const release = (event: PointerEvent) => {
+      touches.delete(event.pointerId)
+      if (touches.size < 2) pinch = null
+    }
+
     stage.addEventListener('pointerup', (event) => {
+      const wasPinching = pinch !== null || touches.size > 1
+      release(event)
+      if (wasPinching) return
       if (!down) return
       const start = down
       down = null
@@ -529,6 +588,19 @@ const items = pieces.map((piece) => {
       const dy = event.clientY - start.y
 
       if (!start.moved) {
+        if (event.pointerType === 'touch' && media instanceof HTMLImageElement) {
+          // Phones: double-tap to look closer or back out; a single tap on the yellow closes
+          const now = performance.now()
+          if (now - lastTap < 320) {
+            lastTap = 0
+            if (zoomed) unzoom()
+            else zoomTo(currentScale() * 2.5, event.clientX, event.clientY)
+          } else {
+            lastTap = now
+            if (start.target === stage && !zoomed) dialog!.close()
+          }
+          return
+        }
         if (start.target === media && media instanceof HTMLImageElement) {
           if (zoomed) unzoom()
           else zoomAt(event.clientX, event.clientY, event.pointerType)
@@ -541,7 +613,10 @@ const items = pieces.map((piece) => {
       if (!zoomed && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) show(index + (dx < 0 ? 1 : -1))
     })
 
-    stage.addEventListener('pointercancel', () => (down = null))
+    stage.addEventListener('pointercancel', (event) => {
+      release(event)
+      down = null
+    })
 
     prevButton.addEventListener('click', () => show(index - 1))
     nextButton.addEventListener('click', () => show(index + 1))
