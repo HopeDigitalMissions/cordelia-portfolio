@@ -1,0 +1,388 @@
+---
+import Base from '../layouts/Base.astro'
+import SocialLinks from '../components/SocialLinks.astro'
+import NameMark from '../assets/name-mark.svg'
+import {urlFor} from '../lib/sanity'
+import {getContactCard, mailtoHref, photoUrl} from '../lib/contact'
+
+// The page people reach from the QR code on her phone. It isn't in the menu
+// and asks search engines to skip it, so it mostly reaches people she's met.
+const card = await getContactCard()
+
+const photo = card.photo && {
+  src: photoUrl(card.photo, 272).auto('format').quality(90).url(),
+  srcset: [160, 272, 408].map((size) => `${photoUrl(card.photo!, size).auto('format').quality(90).url()} ${size}w`).join(', '),
+}
+
+const pieces = card.pieces.map((piece) => {
+  const {width, height} = piece.dimensions
+  // The whole piece at the column's width; the original's own width is always the last option
+  const src = (w: number) => urlFor(piece.image.asset).width(w).quality(90).auto('format').url()
+  const widths = [400, 640, 900, 1200, 1600].filter((w) => w < width * 0.95)
+  return {
+    ...piece,
+    src: src(Math.min(900, width)),
+    srcset: [...widths, Math.min(width, 2000)].map((w) => `${src(w)} ${w}w`).join(', '),
+    style: piece.lqip ? `background-image: url(${piece.lqip})` : undefined,
+    href: piece.project && `/projects/${piece.project.slug}`,
+  }
+})
+
+// Instagram gets its own button, so the round icons show the rest
+const {instagram, ...otherSocials} = card.socials
+---
+
+<Base title={`${card.name} | Contact`} description={`Contact details for ${card.name}, ${card.jobTitle.toLowerCase()}.`}>
+  <meta slot="head" name="robots" content="noindex" />
+
+  <main class="card">
+    <header class="intro">
+      {
+        photo && (
+          <img class="photo" src={photo.src} srcset={photo.srcset} sizes="8.5rem" alt="" width="272" height="272" />
+        )
+      }
+      <h1>
+        <NameMark class="name-mark" aria-hidden="true" />
+        <span class="visually-hidden">{card.name}</span>
+      </h1>
+      <p class="job">{card.jobTitle}</p>
+    </header>
+
+    <div class="actions">
+      <a class="add" href="/hi/contact.vcf">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M15 19c0-2.8-2.7-5-6-5s-6 2.2-6 5M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M19 8v6M16 11h6"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        Add to contacts
+      </a>
+      {card.event && <p class="tip">Later, search “{card.event}” in your contacts to find me.</p>}
+
+      <div class="secondary">
+        {
+          card.email && (
+            <a class="button" href={mailtoHref(card)}>
+              Email me
+            </a>
+          )
+        }
+        {
+          instagram && (
+            <a class="button" href={instagram} target="_blank" rel="noopener me">
+              Follow on Instagram
+            </a>
+          )
+        }
+      </div>
+
+      {
+        card.email && (
+          <p class="email">
+            <span>{card.email}</span>
+            <button type="button" class="copy" data-email={card.email} hidden>
+              Copy
+            </button>
+          </p>
+        )
+      }
+
+      <SocialLinks socials={otherSocials} />
+    </div>
+
+    {
+      pieces.length > 0 && (
+        <section class="work" aria-labelledby="work-heading">
+          <h2 id="work-heading">A few pieces</h2>
+          {pieces.map((piece) => (
+            <figure>
+              {piece.href ? (
+                <a href={piece.href}>
+                  <img
+                    src={piece.src}
+                    srcset={piece.srcset}
+                    sizes="min(100vw - 2.5rem, 30rem)"
+                    alt={piece.image.alt ?? piece.title}
+                    width={piece.dimensions.width}
+                    height={piece.dimensions.height}
+                    style={piece.style}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </a>
+              ) : (
+                <img
+                  src={piece.src}
+                  srcset={piece.srcset}
+                  sizes="min(100vw - 2.5rem, 30rem)"
+                  alt={piece.image.alt ?? piece.title}
+                  width={piece.dimensions.width}
+                  height={piece.dimensions.height}
+                  style={piece.style}
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
+              <figcaption>{piece.title}</figcaption>
+            </figure>
+          ))}
+          <a class="button" href="/portfolio">
+            See my portfolio
+          </a>
+        </section>
+      )
+    }
+
+    <p class="copyright">&copy; {new Date().getFullYear()} {card.name}</p>
+  </main>
+</Base>
+
+<script>
+  // Show Copy only where the browser allows it, mostly for people reading this on a computer
+  for (const button of document.querySelectorAll<HTMLButtonElement>('.copy')) {
+    if (!navigator.clipboard) continue
+    button.hidden = false
+    button.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(button.dataset.email!)
+        button.textContent = 'Copied'
+        setTimeout(() => (button.textContent = 'Copy'), 2000)
+      } catch {
+        button.hidden = true
+      }
+    })
+  }
+</script>
+
+<style is:global>
+  body:has(.card) {
+    background: var(--sun);
+  }
+</style>
+
+<style>
+  .card {
+    display: grid;
+    justify-items: center;
+    gap: 2rem;
+    max-width: 30rem;
+    margin: 0 auto;
+    padding: max(2rem, env(safe-area-inset-top)) 1.25rem max(1.5rem, env(safe-area-inset-bottom));
+    color: var(--cocoa);
+    text-align: center;
+  }
+
+  /* Photo, name and title */
+
+  .intro {
+    display: grid;
+    justify-items: center;
+  }
+
+  .photo {
+    display: block;
+    width: 8.5rem;
+    height: 8.5rem;
+    border-radius: 50%;
+    background: var(--paper);
+    box-shadow: 0 0 0 5px var(--paper), 0 2px 10px 4px rgb(78 47 27 / 0.18);
+  }
+
+  h1 {
+    margin: 1.5rem 0 0;
+    line-height: 0;
+  }
+
+  .name-mark {
+    display: block;
+    width: min(15rem, 70vw);
+    height: auto;
+  }
+
+  .job {
+    margin: 0.9rem 0 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  /* Buttons */
+
+  .actions {
+    display: grid;
+    justify-items: center;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  .add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    width: 100%;
+    min-height: 3.75rem;
+    padding: 0.5rem 1.5rem;
+    border-radius: 999px;
+    background: var(--cocoa);
+    color: var(--paper);
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    box-shadow: 0 3px 12px rgb(78 47 27 / 0.3);
+    transition:
+      background-color 150ms,
+      transform 150ms ease-out;
+  }
+
+  .add svg {
+    width: 1.5rem;
+    height: 1.5rem;
+    flex: none;
+  }
+
+  .add:hover,
+  .add:focus-visible {
+    background: var(--cocoa-soft);
+  }
+
+  .add:active {
+    transform: scale(0.98);
+  }
+
+  .tip {
+    margin: -0.25rem 0 0.25rem;
+    max-width: 22em;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    text-wrap: balance;
+  }
+
+  .secondary {
+    display: grid;
+    gap: 0.6rem;
+    width: 100%;
+  }
+
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 3rem;
+    padding: 0.3em 1.2em;
+    border: 2px solid var(--cocoa);
+    border-radius: 999px;
+    background: var(--paper);
+    color: var(--cocoa);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: background-color 150ms;
+  }
+
+  .button:hover,
+  .button:focus-visible {
+    background: var(--sun);
+  }
+
+  .email {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem 0.6rem;
+    margin: 0;
+    font-size: 0.95rem;
+    user-select: all;
+  }
+
+  .copy {
+    padding: 0.35em 0.8em;
+    border: 0;
+    border-radius: 999px;
+    background: rgb(78 47 27 / 0.12);
+    color: inherit;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .copy:hover,
+  .copy:focus-visible {
+    background: rgb(78 47 27 / 0.2);
+  }
+
+  a:focus-visible,
+  .copy:focus-visible {
+    outline: 2px solid var(--cocoa);
+    outline-offset: 3px;
+  }
+
+  /* Pieces */
+
+  .work {
+    display: grid;
+    justify-items: center;
+    gap: 1.5rem;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+  }
+
+  figure {
+    display: grid;
+    gap: 0.6rem;
+    width: 100%;
+    margin: 0;
+  }
+
+  figure a {
+    display: block;
+  }
+
+  figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 6px solid var(--paper);
+    background: var(--paper) center / cover no-repeat;
+    box-shadow: 0 2px 10px rgb(78 47 27 / 0.15);
+  }
+
+  figcaption {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .copyright {
+    margin: 0.5rem 0 0;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+</style>

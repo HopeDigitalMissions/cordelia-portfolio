@@ -42,6 +42,10 @@ export default defineConfig({
               .title('Page not found')
               .id('notFoundPage')
               .child(S.document().schemaType('notFoundPage').documentId('notFoundPage')),
+            S.listItem()
+              .title('Contact card')
+              .id('contactCard')
+              .child(S.document().schemaType('contactCard').documentId('contactCard')),
             S.divider(),
             S.documentTypeListItem('project').title('Projects'),
             S.documentTypeListItem('artwork').title('Artwork'),
