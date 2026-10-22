@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
-import {useClient} from 'sanity'
+import {useClient, type SanityClient} from 'sanity'
 import {Badge, Box, Button, Card, Checkbox, Flex, Heading, Spinner, Stack, Text} from '@sanity/ui'
 import {useToast} from '@sanity/ui/toast'
 import {createImageUrlBuilder} from '@sanity/image-url'
@@ -21,27 +21,40 @@ interface Group {
 }
 
 interface Data {
-  art: {_id: string; title?: string; image?: string; video: boolean; showOnPortfolio?: boolean}[]
+  art: {_id: string; title?: string; image?: string; video: boolean; on?: boolean}[]
   projects: {_id: string; title?: string; pieces?: string[]}[]
   order?: string[]
 }
 
 type Show = 'all' | 'on' | 'off'
 
-const query = `{
+const query = (flag: string) => `{
   "art": *[_type == "artwork" && !(_id in path("versions.**"))]{
-    _id, title, "image": image.asset._ref, "video": defined(video.asset), showOnPortfolio
+    _id, title, "image": image.asset._ref, "video": defined(video.asset), "on": ${flag}
   },
   "projects": *[_type == "project" && !(_id in path("drafts.**"))]{_id, title, "pieces": pieces[]._ref},
   "order": *[_id == "projectsPage"][0].order[]._ref
 }`
 
+export interface PickerConfig {
+  /** The artwork switch this picker sets */
+  flag: 'showOnPortfolio' | 'showOnLanding'
+  /** Where the pieces go, as in "On the portfolio" */
+  place: string
+  intro: string
+  /**
+   * Runs once she pauses or leaves, after a run of clicks. It changes the page document, which is
+   * what rebuilds the site; the clicks themselves are stamped so they don't each start a build.
+   */
+  settle: (client: SanityClient) => Promise<unknown>
+}
+
 /**
  * Every artwork as a grid of thumbnails, grouped by project, with a checkbox on each so she can
- * put lots of pieces on the Portfolio page (or take them off) without opening them one by one.
+ * put lots of pieces on a page (or take them off) without opening them one by one.
  * Each click saves straight to the published piece.
  */
-export function PortfolioPicker() {
+function PiecePicker({flag, place, intro, settle}: PickerConfig) {
   const client = useClient({apiVersion: '2025-08-15'})
   const toast = useToast()
   const [pieces, setPieces] = useState<Map<string, Piece> | null>(null)
@@ -62,7 +75,7 @@ export function PortfolioPicker() {
   }, [client])
 
   const load = useCallback(async () => {
-    const data = await client.fetch<Data>(query, {}, {perspective: 'raw'})
+    const data = await client.fetch<Data>(query(flag), {}, {perspective: 'raw'})
     const next = new Map<string, Piece>()
     // Published copies first, so the switch shows what the site uses; a draft adds its id and newer title
     const sorted = [...data.art].sort((a, b) => Number(a._id.startsWith('drafts.')) - Number(b._id.startsWith('drafts.')))
@@ -81,7 +94,7 @@ export function PortfolioPicker() {
         title: doc.title ?? 'Untitled',
         image: doc.image,
         video: doc.video,
-        on: doc.showOnPortfolio === true,
+        on: doc.on === true,
       })
     }
 
@@ -104,7 +117,7 @@ export function PortfolioPicker() {
 
     setPieces(next)
     setGroups(nextGroups)
-  }, [client])
+  }, [client, flag])
 
   useEffect(() => {
     load().catch((err) => toast.push({status: 'error', title: 'Could not load the artwork', description: err.message}))
@@ -125,20 +138,15 @@ export function PortfolioPicker() {
     }
   }, [client, load, toast])
 
-  // The site rebuilds when the Portfolio page changes, not when a piece is switched from here
+  // The site rebuilds when the page document changes, not when a piece is switched from here
   // (see portfolioPickedAt), so a run of clicks ends in a single rebuild once she pauses or leaves
   const announce = useCallback(() => {
     if (announcing.current) clearTimeout(announcing.current)
     announcing.current = null
-    client
-      .transaction()
-      .createIfNotExists({_id: 'portfolioPage', _type: 'portfolioPage'})
-      .patch('portfolioPage', {set: {piecesChangedAt: new Date().toISOString()}})
-      .commit({visibility: 'async'})
-      .catch((err) =>
-        toast.push({status: 'error', title: 'Could not tell the site to update', description: err.message}),
-      )
-  }, [client, toast])
+    settle(client).catch((err) =>
+      toast.push({status: 'error', title: 'Could not tell the site to update', description: err.message}),
+    )
+  }, [client, settle, toast])
 
   useEffect(() => {
     const flush = () => {
@@ -169,7 +177,7 @@ export function PortfolioPicker() {
       const transaction = client.transaction()
       const pickedAt = new Date().toISOString()
       for (const piece of changing) {
-        for (const id of piece.copies) transaction.patch(id, {set: {showOnPortfolio: on, portfolioPickedAt: pickedAt}})
+        for (const id of piece.copies) transaction.patch(id, {set: {[flag]: on, portfolioPickedAt: pickedAt}})
       }
       try {
         await transaction.commit({visibility: 'async'})
@@ -186,7 +194,7 @@ export function PortfolioPicker() {
         }
       }
     },
-    [announce, client, load, pieces, toast],
+    [announce, client, flag, load, pieces, toast],
   )
 
   if (!pieces) {
@@ -206,8 +214,7 @@ export function PortfolioPicker() {
       <Stack gap={5}>
         <Stack gap={4}>
           <Text size={1} muted>
-            Click a piece to put it on the Portfolio page or take it off. Each click saves right away, and the site
-            updates a few minutes after you finish. To choose which pieces lead the page, use the Order and intro tab.
+            {intro}
           </Text>
           <Flex gap={2} wrap="wrap">
             <Button
@@ -217,7 +224,7 @@ export function PortfolioPicker() {
             />
             <Button
               mode={show === 'on' ? 'default' : 'ghost'}
-              text={`On the portfolio (${onCount})`}
+              text={`${place} (${onCount})`}
               onClick={() => setShow('on')}
             />
             <Button
@@ -239,7 +246,7 @@ export function PortfolioPicker() {
                 <Stack flex={1} gap={2}>
                   <Heading size={1}>{group.title}</Heading>
                   <Text size={1} muted>
-                    {groupOn} of {members.length} on the portfolio
+                    {groupOn} of {members.length} {place.toLowerCase()}
                   </Text>
                 </Stack>
                 <Button
@@ -325,5 +332,60 @@ function Tile({piece, src, onToggle}: {piece: Piece; src?: string; onToggle: (id
         </Box>
       </Flex>
     </Card>
+  )
+}
+
+export function PortfolioPicker() {
+  return (
+    <PiecePicker
+      flag="showOnPortfolio"
+      place="On the portfolio"
+      intro="Click a piece to put it on the Portfolio page or take it off. Each click saves right away, and the site updates a few minutes after you finish. To choose which pieces lead the page, use the Order and intro tab."
+      settle={(client) =>
+        client
+          .transaction()
+          .createIfNotExists({_id: 'portfolioPage', _type: 'portfolioPage'})
+          .patch('portfolioPage', {set: {piecesChangedAt: new Date().toISOString()}})
+          .commit({visibility: 'async'})
+      }
+    />
+  )
+}
+
+/** Keeps the landing slideshow order in step with the switched-on pieces */
+export async function syncLandingSlides(client: SanityClient) {
+  const {on, slides} = await client.fetch<{on: string[]; slides: string[] | null}>(
+    `{
+      "on": *[_type == "artwork" && showOnLanding == true && !(_id in path("drafts.**")) && !(_id in path("versions.**"))] | order(_createdAt desc)._id,
+      "slides": *[_id == "landingPage"][0].slides[]._ref
+    }`,
+  )
+  const next = slideOrder(slides ?? [], on)
+  if (!next) return
+  const value = next.map((id) => ({_type: 'reference', _ref: id, _key: id}))
+  const transaction = client
+    .transaction()
+    .createIfNotExists({_id: 'landingPage', _type: 'landingPage'})
+    .patch('landingPage', {set: {slides: value}})
+  // Keep an open, unpublished edit of the Landing page in step too
+  const draft = await client.fetch<string | null>('*[_id == "drafts.landingPage"][0]._id')
+  if (draft) transaction.patch(draft, {set: {slides: value}})
+  return transaction.commit({visibility: 'async'})
+}
+
+/** The slideshow order with switched-off pieces dropped and new ones added at the end, or null if unchanged */
+export function slideOrder(current: string[], on: string[]) {
+  const next = [...current.filter((id) => on.includes(id)), ...on.filter((id) => !current.includes(id))]
+  return next.length === current.length && next.every((id, i) => id === current[i]) ? null : next
+}
+
+export function LandingPicker() {
+  return (
+    <PiecePicker
+      flag="showOnLanding"
+      place="In the slideshow"
+      intro="Click a piece to add it to the landing page slideshow or take it off. Each click saves right away, and the site updates a few minutes after you finish. New pieces join the end of the slideshow; drag them into order on the Order and settings tab."
+      settle={syncLandingSlides}
+    />
   )
 }

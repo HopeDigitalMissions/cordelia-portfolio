@@ -1,5 +1,6 @@
 import {defineArrayMember, defineField, defineType} from 'sanity'
 import {HomeIcon} from '@sanity/icons/Home'
+import {SlidesInput} from '../../components/SlidesInput'
 
 export const landingPage = defineType({
   name: 'landingPage',
@@ -48,7 +49,7 @@ export const landingPage = defineType({
       title: 'Slideshow order',
       type: 'array',
       description:
-        'Drag to reorder. Only pieces with "Include on landing page" switched on can be added. Switched-on pieces missing from this list still play, after these, newest first.',
+        'Drag to reorder. To add or remove pieces, use the Choose pieces tab, or the "Include on landing page" switch on any piece; they show up here on their own.',
       of: [
         defineArrayMember({
           type: 'reference',
@@ -56,6 +57,7 @@ export const landingPage = defineType({
           options: {filter: 'showOnLanding == true', disableNew: true},
         }),
       ],
+      components: {input: SlidesInput},
       validation: (rule) => rule.unique(),
     }),
     defineField({
