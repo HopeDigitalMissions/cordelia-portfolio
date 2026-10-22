@@ -18,7 +18,7 @@ interface Artwork {
   lqip?: string
   landingFit?: 'auto' | 'fill' | 'whole'
   landingMotion?: 'auto' | 'path' | 'still'
-  landingPan?: {x?: number; y?: number}
+  landingPan?: {x?: number; y?: number; separateEnd?: boolean; endX?: number; endY?: number}
   landingMoveOnWide?: boolean
 }
 
@@ -67,6 +67,10 @@ const slides: Slide[] = artworks.map(({image, dimensions, title, lqip, landingFi
     landingMotion === 'path' && typeof landingPan?.x === 'number' && typeof landingPan?.y === 'number'
       ? inCrop({x: landingPan.x, y: landingPan.y})
       : undefined
+  const panRest =
+    panEnd && landingPan?.separateEnd && typeof landingPan.endX === 'number' && typeof landingPan.endY === 'number'
+      ? inCrop({x: landingPan.endX, y: landingPan.endY})
+      : undefined
   const width = Math.round(dimensions.width * (1 - crop.left - crop.right))
   const height = Math.round(dimensions.height * (1 - crop.top - crop.bottom))
   const aspect = width / height
@@ -84,6 +88,7 @@ const slides: Slide[] = artworks.map(({image, dimensions, title, lqip, landingFi
     focus,
     motion: panEnd ? 'path' : landingMotion === 'still' ? 'still' : 'auto',
     panEnd,
+    panRest,
     moveOnWide: landingMoveOnWide === true,
     placeholder: lqip,
     backdrop: urlFor(image).width(400).blur(40).quality(60).auto('format').url(),

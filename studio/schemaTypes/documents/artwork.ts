@@ -136,10 +136,13 @@ export const artwork = defineType({
       title: 'Pan path',
       type: 'object',
       description:
-        'Starts at the point you click and glides to the hotspot, at the Pan speed set on the Landing page. The piece stays on screen until it arrives. Phones only, unless Also move on computers is on.',
+        'Starts at the brown dot and glides to the yellow one (normally the hotspot), at the Pan speed set on the Landing page. The piece stays on screen until it arrives. Phones only, unless Also move on computers is on.',
       fields: [
         defineField({name: 'x', type: 'number'}),
         defineField({name: 'y', type: 'number'}),
+        defineField({name: 'separateEnd', type: 'boolean'}),
+        defineField({name: 'endX', type: 'number'}),
+        defineField({name: 'endY', type: 'number'}),
       ],
       components: {input: PanPathInput},
       hidden: ({document}) => !document?.showOnLanding || document?.landingMotion !== 'path',

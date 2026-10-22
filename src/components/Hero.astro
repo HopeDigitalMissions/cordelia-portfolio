@@ -20,6 +20,8 @@ export interface Slide {
   /** Also move on computers and other wide screens */
   moveOnWide: boolean
   panEnd?: {x: number; y: number}
+  /** A path's own resting point, when it shouldn't end on the hotspot */
+  panRest?: {x: number; y: number}
 }
 
 interface Props {
@@ -47,6 +49,7 @@ const {slides, name, eyebrow, seconds, panSpeed, transition, socials, character}
           data-motion={slide.motion}
           data-move-on-wide={slide.moveOnWide ? '' : undefined}
           data-pan-end={slide.panEnd ? `${slide.panEnd.x} ${slide.panEnd.y}` : undefined}
+          data-pan-rest={slide.panRest ? `${slide.panRest.x} ${slide.panRest.y}` : undefined}
           data-aspect={slide.width / slide.height}
           data-backdrop={slide.backdrop}
           style={`--position: ${slide.position};${i === 0 && slide.placeholder ? ` --placeholder: url(${slide.placeholder});` : ''}`}
@@ -406,6 +409,8 @@ const {slides, name, eyebrow, seconds, panSpeed, transition, socials, character}
       let drawnWidth = whole ? Math.min(stageWidth, stageHeight * aspect) : cover
       const focus = point(slide.dataset.focus) ?? [0.5, 0.5]
       const end = point(slide.dataset.panEnd)
+      // Where a path comes to rest: its own end point if it has one, otherwise the hotspot
+      const rest = point(slide.dataset.panRest) ?? focus
       let target: [number, number] | undefined
       let path = false
 
@@ -415,7 +420,7 @@ const {slides, name, eyebrow, seconds, panSpeed, transition, socials, character}
         if (slide.dataset.motion === 'path' && end) {
           // Zoom in a little when the path runs along the side that has no spare room, so it can move that way
           const spareX = cover - stageWidth > 16
-          const across = spareX ? Math.abs(end[1] - focus[1]) : Math.abs(end[0] - focus[0])
+          const across = spareX ? Math.abs(end[1] - rest[1]) : Math.abs(end[0] - rest[0])
           drawnWidth = cover * (across > 0.03 ? Math.min(MAX_PATH_ZOOM, 1 + across * 0.8) : 1)
           target = end
           path = true
@@ -441,9 +446,9 @@ const {slides, name, eyebrow, seconds, panSpeed, transition, socials, character}
           Math.min(0, Math.max(stageWidth - drawnWidth, stageWidth / 2 - x * drawnWidth)),
           Math.min(0, Math.max(stageHeight - drawnHeight, stageHeight / 2 - y * drawnHeight)),
         ]
-        // A path from Sanity starts at the point she clicked and comes to rest on the hotspot
+        // A path from Sanity starts at the brown dot and comes to rest on the yellow one
         const from = path ? offset(target) : offset(focus)
-        let to = path ? offset(focus) : offset(target)
+        let to = path ? offset(rest) : offset(target)
         let distance = Math.hypot(to[0] - from[0], to[1] - from[1])
         let duration: number
         if (path) {
