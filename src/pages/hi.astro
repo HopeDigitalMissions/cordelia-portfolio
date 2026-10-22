@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro'
 import SocialLinks from '../components/SocialLinks.astro'
 import NameMark from '../assets/name-mark.svg'
 import {urlFor} from '../lib/sanity'
-import {SITE_URL, getContactCard, mailtoHref, photoUrl} from '../lib/contact'
+import {getContactCard, mailtoHref, photoUrl} from '../lib/contact'
 
 // The page people reach from the QR code on her phone. It isn't in the menu
 // and asks search engines to skip it, so it mostly reaches people she's met.
@@ -36,6 +36,21 @@ const {instagram, ...otherSocials} = card.socials
   <meta slot="head" name="robots" content="noindex" />
 
   <main class="card">
+    <a class="home" href="/" aria-label={`${card.name}, home`} title="Home">
+      <svg viewBox="4 4 56 56" aria-hidden="true">
+        <g fill="currentColor">
+          <path
+            transform="translate(6.25 67.81) scale(0.06277 -0.06277)"
+            d="M249 913C163 913 51 890 14 800C-7 746 9 686 61 658C121 625 178 647 211 682C232 706 248 745 226 791C212 774 196 767 179 767C141 765 121 795 126 827C133 868 179 898 224 896C261 895 288 871 288 829C288 811 285 793 277 778C182 585 236 212 520 212C607 212 673 243 720 290L648 436C637 324 595 225 520 225C341 225 340 900 520 900C595 900 637 802 648 689L720 835C673 882 607 913 520 913Z"
+          />
+          <path
+            transform="translate(39.95 71.55) scale(0.05155 -0.05155)"
+            d="M127 612C136 687 174 751 284 758C174 763 137 842 127 903C121 841 85 762 -30 758C84 749 116 685 127 612Z"
+          />
+        </g>
+      </svg>
+    </a>
+
     <header class="intro">
       {
         photo && (
@@ -47,8 +62,6 @@ const {instagram, ...otherSocials} = card.socials
         <span class="visually-hidden">{card.name}</span>
       </h1>
       <p class="job">{card.jobTitle}</p>
-      <!-- So it's clear this is her website, with a way to the rest of it -->
-      <a class="site" href="/">{new URL(SITE_URL).hostname.replace(/^www\./, '')}</a>
     </header>
 
     <div class="actions">
@@ -215,18 +228,34 @@ const {instagram, ...otherSocials} = card.socials
     text-transform: uppercase;
   }
 
-  .site {
-    margin-top: 0.7rem;
-    padding: 0.2em 0.1em;
-    font-size: 0.95rem;
-    font-weight: 500;
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 0.25em;
+  /* Her C and star from the browser tab icon, back to the homepage */
+  .home {
+    position: absolute;
+    top: max(1rem, env(safe-area-inset-top));
+    left: 1rem;
+    display: block;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0.45rem;
+    border-radius: 50%;
+    background: var(--paper);
+    color: var(--cocoa);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
+    transition:
+      background-color 150ms,
+      transform 150ms ease-out;
   }
 
-  .site:hover {
-    text-decoration-thickness: 2px;
+  .home svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .home:hover,
+  .home:focus-visible {
+    background: var(--sun);
+    transform: translateY(-2px);
   }
 
   /* Buttons */
