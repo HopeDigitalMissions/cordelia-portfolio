@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro'
 import SocialLinks from '../components/SocialLinks.astro'
 import NameMark from '../assets/name-mark.svg'
 import {urlFor} from '../lib/sanity'
-import {getContactCard, mailtoHref, photoUrl} from '../lib/contact'
+import {SITE_URL, getContactCard, mailtoHref, photoUrl} from '../lib/contact'
 
 // The page people reach from the QR code on her phone. It isn't in the menu
 // and asks search engines to skip it, so it mostly reaches people she's met.
@@ -47,6 +47,8 @@ const {instagram, ...otherSocials} = card.socials
         <span class="visually-hidden">{card.name}</span>
       </h1>
       <p class="job">{card.jobTitle}</p>
+      <!-- So it's clear this is her website, with a way to the rest of it -->
+      <a class="site" href="/">{new URL(SITE_URL).hostname.replace(/^www\./, '')}</a>
     </header>
 
     <div class="actions">
@@ -211,6 +213,20 @@ const {instagram, ...otherSocials} = card.socials
     font-weight: 600;
     letter-spacing: 0.22em;
     text-transform: uppercase;
+  }
+
+  .site {
+    margin-top: 0.7rem;
+    padding: 0.2em 0.1em;
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.25em;
+  }
+
+  .site:hover {
+    text-decoration-thickness: 2px;
   }
 
   /* Buttons */
